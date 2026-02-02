@@ -1,16 +1,21 @@
 Package: iLab
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Functions To Process Fish Annotation Data At DBCA
 Version: 0.1.0
 Authors@R: c(
     person(
-      "Jane", "Doe",
-      email = "jane@example.com",
-      role = c("aut", "cre")
+      "Mike", "Taylor",
+      email = "mike.taylor@dbca.wa.gov.au",
+      role = "aut"
+    ),
+    person(
+      "Claude", "Spencer",
+      email = "claude.spencer@dbca.wa.gov.au",
+      role = "aut"
     )
   )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
-License: What license is it under?
+Description: This package contains functions to process stereo-video fish annotations.
+    These functions are specific for the processes used by DBCA's iLab.
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
