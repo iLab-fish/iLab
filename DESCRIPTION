@@ -11,7 +11,7 @@ Authors@R: c(
     person(
       "Claude", "Spencer",
       email = "claude.spencer@dbca.wa.gov.au",
-      role = "aut"
+      role = "cre"
     )
   )
 Description: This package contains functions to process stereo-video fish annotations.
