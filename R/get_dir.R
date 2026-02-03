@@ -1,11 +1,19 @@
-
 #' Get a OneDrive directory path
 #'
+#' @description
 #' Validates and returns the full path to a first-level folder (and optional
 #' subfolder) under a configurable root directory (defaults to OneDrive Buisness).
 #' This allows DBCA personnel to create shareable scripts that can access OneDrive 
 #' files synced to their PC. 
 #'
+#' @usage get_dir(
+#' dir,
+#' sub.folder = NULL,
+#' root = Sys.getenv("OneDriveCommercial"),
+#' exclude = c("Apps", "Attachments", "Desktop", "Documents", "Pictures",
+#'             "OneNote Loop Files", "Microsoft Copilot Chat Files", "Microsoft Teams Chat Files")
+#'             )
+#' 
 #' @param dir Character scalar. Name of a top-level folder under \code{root} (e.g.
 #' "ilab-fish"). Only requires a partial match for a folder and errors if multiple 
 #' matches are found.
@@ -18,6 +26,8 @@
 #'  set. Defaults to common system/personal folders.
 #'
 #' @return A length-1 character vector: the normalized absolute path.
+#' 
+#' @seealso \link[base]{list.dirs}, \link[base]{file.path}, \link[base]{Sys.getenv}
 #'
 #' @examples
 #' \dontrun{
@@ -25,16 +35,13 @@
 #' get_dir("Projects")
 #'
 #' # With an existing subfolder:
-#' get_dir("Projects", sub.folder = "2025/Reports")
+#' get_dir("ilab_fish", sub.folder = "NCMP/2024-02_BRUV")
 #'
 #' # Use a different root (e.g., personal OneDrive):
 #' get_dir("Photos", root = Sys.getenv("OneDrive"))
 #' }
 #' 
-#' @seealso \link[base]{list.dirs}, \link[base]{file.path}, \link[base]{Sys.getenv}
 #' @export
-
-# TODO - Could add options to find specific files or create missing folders
 
 get_dir <- function(dir, 
                     sub.folder = NULL, 
