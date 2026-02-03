@@ -26,7 +26,7 @@
 #' na_cols(df[0, ], type = "any")            # 0 rows -> character(0)
 #' na_cols(df[0, ], type = "all")            # 0 rows -> character(0)
 #'
-#' @seealso [anyNA()], [is.na()], [colSums()]
+#' @seealso \link[base]{is.na}
 #' @export
 
 

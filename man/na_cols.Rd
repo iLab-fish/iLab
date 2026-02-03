@@ -39,5 +39,5 @@ na_cols(df[0, ], type = "all")            # 0 rows -> character(0)
 
 }
 \seealso{
-[anyNA()], [is.na()], [colSums()]
+\link[base]{is.na}
 }
