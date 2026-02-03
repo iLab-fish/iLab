@@ -5,29 +5,29 @@
 \title{Get a OneDrive directory path}
 \usage{
 get_dir(
-dir,
-sub.folder = NULL,
-root = Sys.getenv("OneDriveCommercial"),
-exclude = c("Apps", "Attachments", "Desktop", "Documents", "Pictures",
-            "OneNote Loop Files", "Microsoft Copilot Chat Files", "Microsoft Teams Chat Files")
-            )
+  dir,
+  sub.folder = NULL,
+  root = Sys.getenv("OneDriveCommercial"),
+  exclude = c("Apps", "Attachments", "Desktop", "Documents", "Pictures",
+    "OneNote Loop Files", "Microsoft Copilot Chat Files", "Microsoft Teams Chat Files")
+)
 }
 \arguments{
-\item{dir}{Character scalar. Name of a top-level folder under \code{root} (e.g.
+\item{dir}{Character vector for a top-level folder under \code{root} (e.g.
 "ilab-fish"). Only requires a partial match for a folder and errors if multiple 
 matches are found.}
 
-\item{sub.folder}{Optional character scalar. Subdirectory within \code{dir} (e.g.
-"NCMP/2023-03-BRUV").}
+\item{sub.folder}{Optional character vector of a subdirectory within \code{dir} (e.g.
+"NCMP/2024-02_BRUV").}
 
-\item{root}{Character scalar. Sets the root for \code{dir}. Defaults to
+\item{root}{Character vector setting the root for \code{dir}. Defaults to
  \code{Sys.getenv("OneDriveCommercial")} which should be SharePoint for DBCA
  staff who sync sharepoint to their PC. You can override (e.g.,\code{Sys.getenv("OneDrive")}).
-@param exclude Character vector of folder names to exclude from the available
-set. Defaults to common system/personal folders.}
+@param exclude Character vector containing folder names to exclude from the available top-level
+folders in \code{root}. Defaults to common system/personal folders.}
 }
 \value{
-A length-1 character vector: the normalized absolute path.
+A length-1 character vector giving the normalized file path.
 }
 \description{
 Validates and returns the full path to a first-level folder (and optional
@@ -38,7 +38,7 @@ files synced to their PC.
 \examples{
 \dontrun{
 # Exact match to a OneDrive Business top-level folder:
-get_dir("Projects")
+get_dir("ilab_fish")
 
 # With an existing subfolder:
 get_dir("ilab_fish", sub.folder = "NCMP/2024-02_BRUV")
