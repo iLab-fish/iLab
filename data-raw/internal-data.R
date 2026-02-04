@@ -10,4 +10,3 @@ parkID <- read.csv("data-raw/marine_park_identifiers.csv")
 usethis::use_data(parkID,
                   # x, y, z, # Add multiple datasets to internal datasets
                   internal = TRUE, overwrite = TRUE)
-

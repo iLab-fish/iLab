@@ -102,7 +102,7 @@ make_campaign_dir <- function(marine.park = NULL, date = NULL, method = NULL, ba
   camp.dir <-  file.path(
     base.dir,
     marine.park,
-    paste(date,method, sep ="-")
+    paste(date,method, sep ="_")
   )
   
     # Create campaign folder template
