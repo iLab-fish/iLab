@@ -16,8 +16,13 @@
 #' 
 #' @export
 
-
-
+# TODO - investigate warning "in shiny::removeResourcePath(alias) : Resource imgdir not found
+# TODO - add stats on n per transect/deplyment
+# TODO - add simplify UI/add dark mode
+# TODO - improve pop-up window sizing
+# TODO - Create standalone repo?
+# TODO - create executable (i.e., can be run outside R)?
+# 
 # library(shiny)
 # library(tools)
 # library(dplyr)
@@ -28,34 +33,54 @@ ref_library <- function() {
   # UI ----
   ui <- fluidPage(
     
+    # tags for pan zoom
     tags$head(
+      # CSS first
       tags$style(HTML("
-    .grid { display: flex; flex-wrap: wrap; gap: 10px; }
-    .card { border: 1px solid #eee; padding: 8px; border-radius: 6px; width: 240px; cursor: pointer; }
-    .thumb { width: 100%; height: auto; object-fit: cover; border-radius: 4px; }
-    .caption { font-size: 12px; color: #555; margin-top: 6px; }
-    .muted { color: #888; }
+      .grid { display: flex; flex-wrap: wrap; gap: 10px; }
+      .card { border: 1px solid #eee; padding: 8px; border-radius: 6px; width: 240px; cursor: pointer; }
+      .thumb { width: 100%; height: auto; object-fit: cover; border-radius: 4px; }
+      .caption { font-size: 12px; color: #555; margin-top: 6px; }
+      .muted { color: #888; }
 
-    /* Modal image sizing */
-    .modal-lg-img {
-      max-width: 90vw;
-      max-height: 85vh;
-      width: auto;
-      height: auto;
-      display: block;
-      margin: 0 auto;
-      border-radius: 6px;
-    }
-    .modal-title-small {
-      font-size: 14px;
-      color: #666;
-      margin-top: 8px;
-      word-break: break-all;
-    }
-  "))
-    )
-    ,
-    titlePanel("Park Images Browser"),
+      .modal-dialog { max-width: 95% !important; }
+      #zoom-container { width: 100%; height: 80vh; overflow: hidden; border: 1px solid #ccc; }
+      #zoom-img { width: 100%; height: auto; cursor: move; }
+    ")),
+      
+      # JS libraries for zoom/pan
+      tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/jquery-mousewheel/3.1.13/jquery.mousewheel.min.js"),
+      tags$script(src = "https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.panzoom.min.js")
+    ),
+    
+    # tags for basic UI
+  #   tags$head(
+  #     tags$style(HTML("
+  #   .grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  #   .card { border: 1px solid #eee; padding: 8px; border-radius: 6px; width: 240px; cursor: pointer; }
+  #   .thumb { width: 100%; height: auto; object-fit: cover; border-radius: 4px; }
+  #   .caption { font-size: 12px; color: #555; margin-top: 6px; }
+  #   .muted { color: #888; }
+  # 
+  #   /* Modal image sizing */
+  #   .modal-lg-img {
+  #     max-width: 90vw;
+  #     max-height: 85vh;
+  #     width: auto;
+  #     height: auto;
+  #     display: block;
+  #     margin: 0 auto;
+  #     border-radius: 6px;
+  #   }
+  #   .modal-title-small {
+  #     font-size: 14px;
+  #     color: #666;
+  #     margin-top: 8px;
+  #     word-break: break-all;
+  #   }
+  # "))
+  #   ),
+    titlePanel("iLab Fish Reference Images"),
     sidebarLayout(
       sidebarPanel(
         # No path input and no Scan button — indexing happens automatically.
@@ -547,19 +572,56 @@ ref_library <- function() {
       info <- input$img_click
       if (is.null(info) || is.null(info$src)) return()
       
+      # Basic pop-up window
+      # showModal(
+      #   modalDialog(
+      #     easyClose = TRUE,
+      #     footer = modalButton("Close"),
+      #     size = "l",  # large modal
+      #     tags$div(
+      #       tags$img(src = info$src, class = "modal-lg-img"),
+      #       if (!is.null(info$caption) && nzchar(info$caption)) {
+      #         tags$div(class = "modal-title-small", info$caption)
+      #       }
+      #     )
+      #   )
+      # )
+      
+      # Pop-up window with panzoom
       showModal(
         modalDialog(
+          size = "l",
           easyClose = TRUE,
           footer = modalButton("Close"),
-          size = "l",  # large modal
+          
+          # Container + image
           tags$div(
-            tags$img(src = info$src, class = "modal-lg-img"),
-            if (!is.null(info$caption) && nzchar(info$caption)) {
-              tags$div(class = "modal-title-small", info$caption)
-            }
-          )
+            id = "zoom-container",
+            tags$img(id = "zoom-img", src = info$src)
+          ),
+          
+          # Init Panzoom each time the modal is shown
+          tags$script(HTML("
+      (function() {
+        var $elem = $('#zoom-container');
+        // Destroy any prior panzoom to avoid double-binding if user opens multiple times
+        try { $elem.panzoom('destroy'); } catch(e) {}
+        $elem.panzoom({
+          contain: 'invert',
+          minScale: 1,
+          maxScale: 8,
+          increment: 0.1
+        }).on('mousewheel.focal', function(e) {
+          e.preventDefault();
+          var delta = e.delta || e.originalEvent.wheelDelta;
+          var zoomOut = delta ? delta < 0 : e.originalEvent.deltaY > 0;
+          $elem.panzoom('zoom', zoomOut, { animate: false, focal: e });
+        });
+      })();
+    "))
         )
       )
+      
     })
     
     
@@ -568,3 +630,4 @@ ref_library <- function() {
   # RUN ----
   shinyApp(ui, server)
 }
+
