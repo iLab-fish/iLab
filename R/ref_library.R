@@ -14,6 +14,7 @@
 #' @importFrom magrittr %>%
 #' @importFrom dplyr filter select left_join join_by
 #' @importFrom htmltools htmlEscape
+#' @importFrom stats na.omit complete.cases
 #' 
 #' @export
 
@@ -93,9 +94,6 @@ ref_library <- function() {
     titlePanel("iLab Fish Reference Images"),
     sidebarLayout(
       sidebarPanel(
-        # No path input and no Scan button — indexing happens automatically.
-        # checkboxInput("recursive", "Include subfolders", value = TRUE),
-        # tags$hr(),
         selectizeInput(
           "parkid", "Park ID",
           choices = c("All" = ""), selected = "", multiple = FALSE,
@@ -249,7 +247,7 @@ ref_library <- function() {
       # (not used if require_unique = TRUE and >1 hits)
       pick_best_idx <- function(idx_vec) {
         if (length(idx_vec) == 1L) return(idx_vec)
-        # bin_cat <- caab$bin_cat_token[idx_vec]
+        bin_cat <- caab$bin_cat_token[idx_vec]
         bin_sep <- paste(caab$genus[idx_vec], caab$species[idx_vec])
         idx_vec[order(-nchar(bin_cat), bin_sep)][1]
       }
@@ -279,7 +277,7 @@ ref_library <- function() {
           next
         }
         
-        # Unique binomial OR we’re allowed to pick deterministically
+        # Unique binomial OR we can pick deterministically
         best <- if (length(hits_idx) == 1L) hits_idx else pick_best_idx(hits_idx)
         out_gen[i] <- caab$genus[best]
         out_sp[i]  <- caab$species[best]
@@ -325,6 +323,7 @@ ref_library <- function() {
       }
       
       # CAAB list
+      # TODO - create approach to include in package data rather than rely on sharepoint
       CAAB <- read.delim(file.path(iLab::get_dir("ilab_fish"), "!Essential_Files/CAAB_Species_Files/WA_CAAB.txt"), sep="\t")
       CAAB  <- janitor::clean_names(CAAB)
       names(CAAB)[1] <- "family"
@@ -543,10 +542,10 @@ ref_library <- function() {
       tags$div(
         class = "grid",
         lapply(seq_len(nrow(d)), function(i) {
-          # We’ll send both the image URL and a label/caption
+          # We'll send both the image URL and a label/caption
           img_src <- d$web_path[i]
           caption <- sprintf(
-            "Park ID: %s — %s %s %s — %s",
+            "Park ID: %s - %s %s %s - %s",
             # d$filename[i],
             ifelse(is.na(d$parkid[i]),  "—", d$parkid[i]),
             ifelse(is.na(d$genus[i]),   "",  d$family[i]),
@@ -569,11 +568,11 @@ ref_library <- function() {
                        "<br/>Park ID: %s<br/>Family: %s<br/>Genus: %s<br/>Species: %s<br/>CAAB: %s",
                        # "<b>%s</b><br/>Park ID: %s<br/>Family: %s<br/>Genus: %s<br/>Species: %s<br/>CAAB: %s",
                        # d$filename[i],
-                       ifelse(is.na(d$parkid[i]),  "&mdash;", d$parkid[i]),
-                       ifelse(is.na(d$family[i]),   "&mdash;", d$family[i]),
-                       ifelse(is.na(d$genus[i]),   "&mdash;", d$genus[i]),
-                       ifelse(is.na(d$species[i]), "&mdash;", d$species[i]),
-                       ifelse(is.na(d$caab[i]), "&mdash;", d$caab[i])
+                       ifelse(is.na(d$parkid[i]),"-", d$parkid[i]),
+                       ifelse(is.na(d$family[i]), "-", d$family[i]),
+                       ifelse(is.na(d$genus[i]),   "-", d$genus[i]),
+                       ifelse(is.na(d$species[i]), "-", d$species[i]),
+                       ifelse(is.na(d$caab[i]), "-", d$caab[i])
                      ))
             )
           )
@@ -644,4 +643,3 @@ ref_library <- function() {
   # RUN ----
   shinyApp(ui, server)
 }
-

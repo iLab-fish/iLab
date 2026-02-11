@@ -23,6 +23,7 @@
 #' }
 #' 
 #' @importFrom rstudioapi showPrompt showQuestion
+#' @importFrom utils read.delim select.list
 #' 
 #' @export
 

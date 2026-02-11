@@ -14,7 +14,7 @@
 #' @param root Character vector setting the root for \code{dir}. Defaults to
 #'   \code{Sys.getenv("OneDriveCommercial")} which should be SharePoint for DBCA
 #'   staff who sync sharepoint to their PC. You can override (e.g.,\code{Sys.getenv("OneDrive")}).
-#'  @param exclude Character vector containing folder names to exclude from the available top-level
+#' @param exclude Character vector containing folder names to exclude from the available top-level
 #'  folders in \code{root}. Defaults to common system/personal folders.
 #'
 #' @return A length-1 character vector giving the normalized file path.
@@ -57,6 +57,16 @@ get_dir <- function(dir,
   
   # Get list of currently availbe dirs on users OneDrive
   available <- list.dirs(root, recursive = FALSE, full.names = FALSE)
+  
+  if (any(!exclude %in% available)) {
+    warning(
+      sprintf(
+        "'exclude' includes subfolders not found in %s:\n- %s",
+        root, paste(exclude[!exclude %in% available], collapse = "\n- ")
+        ),
+      call. = FALSE
+    )
+  }
   
   # Exclude common system/personal folders if present
   if (!is.null(exclude) && length(exclude)) {
