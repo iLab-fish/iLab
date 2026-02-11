@@ -21,9 +21,10 @@ matches are found.}
 "NCMP/2024-02_BRUV").}
 
 \item{root}{Character vector setting the root for \code{dir}. Defaults to
- \code{Sys.getenv("OneDriveCommercial")} which should be SharePoint for DBCA
- staff who sync sharepoint to their PC. You can override (e.g.,\code{Sys.getenv("OneDrive")}).
-@param exclude Character vector containing folder names to exclude from the available top-level
+\code{Sys.getenv("OneDriveCommercial")} which should be SharePoint for DBCA
+staff who sync sharepoint to their PC. You can override (e.g.,\code{Sys.getenv("OneDrive")}).}
+
+\item{exclude}{Character vector containing folder names to exclude from the available top-level
 folders in \code{root}. Defaults to common system/personal folders.}
 }
 \value{
