@@ -1,24 +1,3 @@
-# ____________________________________________________________________
-# Asset:   Fish
-# Project: iLab Fish Data Management
-# Task:    Create Campaign folders
-# Data:    Campaign base directory
-# Author:  Mike Taylor
-# Date:    December 2025
-# ____________________________________________________________________
-
-# Check for the existence of a campaign directory and if missing create a new campaign directory
-
-# Inputs:
-# camp.dir - either NULL or a filepath to a campaign directory
-
-# If is.null(camp.dir) the user is prompted to provide a Marine Park ID and set the appropriate date and method for the campaign
-
-# If the file path in camp.dir does not exist the user is prompted to approve the creation of a new folder based on the template
-
-# If the file path in camp.dir exists the folders in this directory are checked and the user is prompted to approve creation of any missing template folders.
-
-
 #' Make Campaign Directory
 #'
 #' @description
@@ -46,6 +25,9 @@
 #' @importFrom rstudioapi showPrompt showQuestion
 #' 
 #' @export
+
+# Add library to DESCRIPTION
+# usethis::use_package("rstudioapi")
 
 # TODO - add verbose option to run function without pop-ups
 
