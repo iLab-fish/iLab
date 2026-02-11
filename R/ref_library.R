@@ -37,8 +37,8 @@
 
 ref_library <- function() {
   
-  require(shiny)
-  require(magrittr)
+  # require(shiny)
+  # require(magrittr)
   
   # UI ----
   ui <- fluidPage(
