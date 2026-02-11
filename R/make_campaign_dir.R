@@ -43,6 +43,8 @@
 #' make_campaign_dir(marine.park = "RIMR", date = "2025-02", method = "BRUV") # Provide file path
 #' }
 #' 
+#' @importFrom rstudioapi showPrompt showQuestion
+#' 
 #' @export
 
 # TODO - add verbose option to run function without pop-ups

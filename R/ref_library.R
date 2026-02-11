@@ -13,8 +13,19 @@
 #' @importFrom janitor clean_names
 #' @importFrom magrittr %>%
 #' @importFrom dplyr filter select left_join join_by
+#' @importFrom htmltools htmlEscape
 #' 
 #' @export
+
+# Add required packages to DESCRIPTION
+# usethis::use_package("shiny")
+# usethis::use_package( "tools")
+# usethis::use_package("dplyr")
+# usethis::use_package("stringi")
+# usethis::use_package("janitor")
+# usethis::use_package("magrittr")
+# usethis::use_package("dplyr")
+# usethis::use_package("htmltools")
 
 # TODO - investigate warning "in shiny::removeResourcePath(alias) : Resource imgdir not found
 # TODO - add stats on n per transect/deplyment
@@ -22,13 +33,12 @@
 # TODO - improve pop-up window sizing
 # TODO - Create standalone repo?
 # TODO - create executable (i.e., can be run outside R)?
-# 
-# library(shiny)
-# library(tools)
-# library(dplyr)
-# library(stringi)
+
 
 ref_library <- function() {
+  
+  require(shiny)
+  require(magrittr)
   
   # UI ----
   ui <- fluidPage(
@@ -342,9 +352,9 @@ ref_library <- function() {
         species  = species,
         stringsAsFactors = FALSE
       )%>%
-        filter(genus %in% CAAB$genus,
+        dplyr::filter(genus %in% CAAB$genus,
                species %in% CAAB$species)%>%
-        left_join(CAAB%>%select(family,genus,species,caab), by = join_by(genus, species))
+        dplyr::left_join(CAAB%>%select(family,genus,species,caab), by = dplyr::join_by(genus, species))
     }
     
     # Index images and update UI
@@ -380,21 +390,25 @@ ref_library <- function() {
       genus_choices  <- sort(unique(na.omit(rv$df$genus)))
       species_choices<- sort(unique(na.omit(rv$df$species)))
       
-      updateSelectizeInput(session, "parkid",
-                           choices = c("All" = "", park_choices),
-                           selected = if (nzchar(isolate(input$parkid)) && isolate(input$parkid) %in% park_choices) isolate(input$parkid) else ""
+      updateSelectizeInput(
+        session, "parkid",
+        choices = c("All" = "", park_choices),
+        selected = if (nzchar(isolate(input$parkid)) && isolate(input$parkid) %in% park_choices) isolate(input$parkid) else ""
       )
-      updateSelectizeInput(session, "family",
-                           choices = c("All" = "", family_choices),
-                           selected = if (nzchar(isolate(input$family)) && isolate(input$family) %in% family_choices) isolate(input$family) else ""
+      updateSelectizeInput(
+        session, "family",
+        choices = c("All" = "", family_choices),
+        selected = if (nzchar(isolate(input$family)) && isolate(input$family) %in% family_choices) isolate(input$family) else ""
       )
-      updateSelectizeInput(session, "genus",
-                           choices = c("All" = "", genus_choices),
-                           selected = if (nzchar(isolate(input$genus)) && isolate(input$genus) %in% genus_choices) isolate(input$genus) else ""
+      updateSelectizeInput(
+        session, "genus",
+        choices = c("All" = "", genus_choices),
+        selected = if (nzchar(isolate(input$genus)) && isolate(input$genus) %in% genus_choices) isolate(input$genus) else ""
       )
-      updateSelectizeInput(session, "species",
-                           choices = c("All" = "", species_choices),
-                           selected = if (nzchar(isolate(input$species)) && isolate(input$species) %in% species_choices) isolate(input$species) else ""
+      updateSelectizeInput(
+        session, "species",
+        choices = c("All" = "", species_choices),
+        selected = if (nzchar(isolate(input$species)) && isolate(input$species) %in% species_choices) isolate(input$species) else ""
       )
     }
     
