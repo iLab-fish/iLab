@@ -28,12 +28,14 @@ Imports:
     htmltools,
     janitor,
     magrittr,
+    openxlsx2,
     purrr,
     rstudioapi,
     shiny,
     stringi,
     stringr,
     tibble,
+    tidyr,
     tools
 Suggests: 
     testthat (>= 3.0.0)
