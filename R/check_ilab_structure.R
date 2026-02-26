@@ -315,19 +315,20 @@ check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fis
 #'Build the default directory/file specification
 #'
 #' @description
-#' Returns a data frame describing the expected structure. This function
-#' centralizes defaults and makes specs testable/reusable.
+#' Internal function used in `check_structure()` to create a data frame describing
+#' the expected file/folder format used in iLab Fish campaigns. The output data frame
+#' includeds regex patterns used to search for directory and file combinations.
 #'
 #' @param MP (Optional) acronym(s) of target marine park(s).
 #' @param campaign (Optional) name of campaign(s) in the target marine park(s). 
 #' Requires `MP` to be defined.
 #' 
-#' @return A data frame with the required columns for `check_structure()`.
-#'   Required columns:
+#' @return A data frame with the required columns for `check_structure()`:
 #'   \describe{
+#'     \item{target}{Describing the target directories/files for that row.}
 #'     \item{type}{`"file"` or `"dir"`.}
-#'     \item{rel_dir_pattern}{Regex matching the **relative parent directory**.}
-#'     \item{name_regex}{Regex matching the **basename** (file or folder name).}
+#'     \item{rel_dir_pattern}{Regex matching the relative parent directory.}
+#'     \item{name_regex}{Regex matching the basename (file or folder name).}
 #'     \item{required}{Logical, whether at least `min` matches are required.}
 #'     \item{min}{Minimum number of matches (per rule).}
 #'     \item{max}{Maximum allowed matches (use `Inf` for unlimited).}

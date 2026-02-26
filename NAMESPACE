@@ -3,6 +3,7 @@
 export(check_structure)
 export(get_dir)
 export(make_campaign_dir)
+export(make_datasheet)
 export(na_cols)
 export(ref_library)
 import(dplyr)
