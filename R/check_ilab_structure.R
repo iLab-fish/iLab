@@ -22,17 +22,26 @@
 #' # check_structure()
 #' 
 #' # Run the check for specific campaign
-#' checks <- check_structure(MP = "RIMR", campaign = "2023-03_BRUV")
+#' checks <- check_structure(MP = "RIMR", campaign = "2023-02_BRUV")
 #' # Print summary
 #' checks$summary
 #'
 #' # Unexpected files
 #' checks$unexpected
+#' 
+#' # View matches
+#' View(checks$matches)
+#' 
 #' }
+#' 
+#' @import fs
+#' @import dplyr
+#' @importFrom stringr str_detect regex
+#' @importFrom purrr pmap map2_dfr
 #'
 #' @export
 
-# TODO - remove reliance on tibble/purrr/stringr
+# TODO - remove reliance on tibble (tribble)/purrr (pmap/map2_dfr)/stringr (str_detect, regex)
 # TODO - update roxygen to import functions/packages
 # TODO - 
 # TODO - add summary printout if verbose = T
@@ -40,27 +49,18 @@
 # TODO - allow method input to switch between spec file creation method as required (e.g., for !Essential_files or Database outputs)
 
 
-# # install.packages(c("fs", "stringr", "purrr", "dplyr", "tibble"))
-# library(fs)
-# library(stringr)
-# library(purrr)
-# library(dplyr)
-# library(tibble)
-# 
-# checks <- check_structure(MP = "RIMR", campaign = "2023-03_BRUV")
-# 
-# View(checks$summary)
-# View(checks$matches)
-# View(checks$unexpected)
-# View(checks$details)
+# usethis::use_package("fs")
+# usethis::use_package("dplyr")
+# usethis::use_package("stringr")
+# usethis::use_package("purrr")
 
-check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("ilab_fish")){
+check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fish")){
   
   # check inputs ----
   
   # Check marine park matches parkID options
-  if (!all(MP %in% iLab:::parkID$parkID)) {
-    stop(sprintf("Invalid 'MP' (%s) detected.", paste(MP [!MP %in% iLab:::parkID$parkID], collapse = ", ")), call. = FALSE)
+  if (!all(MP %in% parkID$parkID)) {
+    stop(sprintf("Invalid 'MP' (%s) detected.", paste(MP [!MP %in% parkID$parkID], collapse = ", ")), call. = FALSE)
   }
   
   # Ensure a single MP is provided if targeting specific campaign
@@ -69,11 +69,9 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
   # Ensure CAMPAIGN IS LENGTH 1 (IF PROVIDED)
   if (!is.null(campaign) && length(campaign) != 1) {stop("length(campaign) != 1.")}
   
-  # Ensure a single MP is provided 
-  
-  root <- fs::path_abs(root)
   
   # Check root dir exists
+  root <- fs::path_abs(root)
   if (!fs::dir_exists(root)) {stop(sprintf("'root (%s) is not a valid directory.", root), call. = FALSE)}
   
   # get paths ----
@@ -100,8 +98,17 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
   
   # Filter to a specific campaign
   if (!is.null(campaign)) {
+    
+    # Check that campaign is valid
+    if(!fs::dir_exists(file.path(root, MP, campaign))) {
+      stop(sprintf("campaign = %s not found within marine park (%s).", campaign, MP), call. = FALSE)
+    }
+    
     all_paths <- all_paths[grepl(fs::path_join(c(MP,campaign)),all_paths)]
+  
   }
+  
+  
   
   # Path errors -----
   
@@ -128,9 +135,11 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
   # Get tibble of all paths
   entries <- if (length(all_paths) == 0) {
     # Empty data frame if not paths remaining
-    tibble(path = character(), type_actual = character(), rel_dir = character(), name = character())
+    # tibble::tibble(path = character(), type_actual = character(), rel_dir = character(), name = character())
+    data.frame(path = character(), type_actual = character(), rel_dir = character(), name = character())
   } else {
-    tibble(
+    # tibble::tibble(
+    data.frame(
       # type (directory or file)
       type_actual = ifelse(fs::is_dir(all_paths), "dir", "file"),
       # directory/file name (without path)
@@ -147,10 +156,10 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
         parent
       },
       # full file path
-      path = fs::path_abs(all_paths),
+      path = fs::path_abs(all_paths)
     ) %>%
       # Remove duplicate paths if present 
-      distinct(path, .keep_all = TRUE)
+      dplyr::distinct(path, .keep_all = TRUE)
   }
   
   # # Apply global ignores (by name only, not full path)
@@ -204,12 +213,14 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
       
       if (!nrow(subset)) {
         # produce empty frame with a matches column
-        subset <- tibble::tibble(
+        # subset <- tibble::tibble(
+        subset <- data.frame(
           type_actual = character(),
           name = character(),
           ext = character(),
           rel_path = character(),
           rel_dir = character(),
+          path = character(),
           matches = logical(),
           target = character()
         )
@@ -222,11 +233,11 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
   # Outputs ----
   
   # Summary per rule (min/max/required)
-  summary <- map2_dfr(matches_by_spec, seq_len(nrow(spec)), function(df, i) {
+  summary <- purrr::map2_dfr(matches_by_spec, seq_len(nrow(spec)), function(df, i) {
     s <- spec[i, ]
     n <- sum(df$matches, na.rm = TRUE)
     
-    status <- case_when(
+    status <- dplyr::case_when(
       n >= s$min & n <= s$max ~ "OK",
       n < s$min & isTRUE(s$required)  ~ "MISSING",
       n < s$min & !isTRUE(s$required) ~ "MISSING_OPTIONAL",
@@ -234,15 +245,16 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
       TRUE                            ~ "CHECK"
     )
     
-    tibble(
+    # tibble::tibble(
+    data.frame(
       spec_row = i,
       target = s$target,
       type = s$type,
       status = status,
       matches_count = n,
-      required = s$required,
       min = s$min,
       max = s$max,
+      required = s$required,
       case_sensitive = s$case_sensitive,
       rel_dir_regex = s$rel_dir_regex,
       name_regex = s$name_regex
@@ -256,36 +268,45 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
   
   # Unexpected entries output
   unexpected <- entries %>%
-    filter(!(path %in% explained_paths)) %>%
-    select(type_actual, name, rel_dir, path)%>%
+    dplyr::filter(!(path %in% explained_paths)) %>%
+    dplyr::select(type_actual, name, rel_dir, path)%>%
     dplyr::rename(type = type_actual, full_path = path)
   
   if(nrow(unexpected)>0) {
     warning(
-      sprintf("%s non matching file paths found (see $unexpected for details)", nrow(unexpected)), call. = FALSE)
+      sprintf("%s non matching file paths found (for details see $unexpected/$unexpected_debug)", nrow(unexpected)), call. = FALSE)
   }
   
   
   # Detailed Matches crosswalk (useful for debugging)
-  matches <- map2_dfr(matches_by_spec, seq_len(nrow(spec)), function(df, i) {
-    if (!nrow(df)) return(tibble())
+  details <- purrr::map2_dfr(matches_by_spec, seq_len(nrow(spec)), function(df, i) {
+    if (!nrow(df)) return(data.frame()) #tibble
     df %>%
       dplyr::mutate(spec_row = i, matched = matches) %>%
       dplyr::select(spec_row, target, type_actual, rel_dir, name, path, matched)
     
   }) %>% dplyr::arrange(spec_row, rel_dir, name)%>%
-    # Only return matches (sometimes including FALSE is useful for debbuging)
-    dplyr::filter(matched == TRUE)%>%
     # Select and rename required columns
-    dplyr::select(type_actual, name, rel_dir, target, spec_row, rel_dir, path)%>%
+    dplyr::select(type_actual, name, rel_dir, matched, target, spec_row, rel_dir, path)%>%
     dplyr::rename(type = type_actual, target_matched = target, target_row = spec_row, full_path = path)
+  
+  row.names(details) <- NULL
+  
+  matches <- details %>%
+    dplyr::filter(matched == TRUE)%>%
+    dplyr::select(-matched)
+  
+  unexpected_debug <- details %>%
+    dplyr::filter(matched == FALSE,
+                  !(full_path %in% explained_paths))
   
   # Output lists
   list(
     # root = root,
     summary = summary,
+    matches = matches,
     unexpected = unexpected,
-    matches = matches
+    debug = unexpected_debug
   )
   
 }
@@ -312,7 +333,13 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
 #'     \item{max}{Maximum allowed matches (use `Inf` for unlimited).}
 #'     \item{case_sensitive}{Logical, case sensitivity for file/dir names.}
 #'     \item{rel_dir_case_sensitive}{Logical, case sensitivity for folder matching.}
+#'     }
+#'     
+#'     @importFrom tibble tribble
 
+# usethis::use_package("tibble")
+
+# TODO - check simple way to remove tribble dependency
 # TODO - add a way to extract the number of campaigns if providing a specific marine park
 # TODO - match expected file naming structure for specific projects and/or files
 # TODO - calculate min number of files when specific campaigns are provided....
@@ -320,19 +347,19 @@ check_structure <- function(MP = NULL, campaign = NULL, root = iLab::get_dir("il
 
 campaign_structure <- function(MP = NULL, campaign = NULL) {
   
-  # n.parks <- if(is.null(MP)) {length(unique(iLab:::parkID$parkID))} else {length(MP)}
+  # n.parks <- if(is.null(MP)) {length(unique(parkID$parkID))} else {length(MP)}
   # n.campaigns <- if(is.null(campaign)) {Inf} else {length(campaign)}
   
   # Potential parks
   if(is.null(MP)) {
     # Generic
-    parks <- paste(unique(iLab:::parkID$parkID), collapse = "|")
-    camp.text <- paste(unique(iLab:::parkID$campaign_text), collapse = "|")
-    n.parks <- length(unique(iLab:::parkID$parkID))
+    parks <- paste(unique(parkID$parkID), collapse = "|")
+    camp.text <- paste(unique(parkID$campaign_text), collapse = "|")
+    n.parks <- length(unique(parkID$parkID))
   } else {
     # User specificed
     parks <- paste(unique(MP), collapse = "|")
-    camp.text <- paste(unique(iLab:::parkID$campaign_text[which(iLab:::parkID$parkID %in% MP)]), collapse = "|")
+    camp.text <- paste(unique(parkID$campaign_text[which(parkID$parkID %in% MP)]), collapse = "|")
     n.parks <- length(unique(MP))
   }
   
@@ -361,7 +388,7 @@ campaign_structure <- function(MP = NULL, campaign = NULL) {
   # Regex creation ----
   
   ## Parkid ----
-  # park <- paste0("^(", if (!is.null(MP)) {paste(unique(MP), collapse = "|")} else {paste(unique(iLab:::parkID$parkID), collapse = "|")},")$")
+  # park <- paste0("^(", if (!is.null(MP)) {paste(unique(MP), collapse = "|")} else {paste(unique(parkID$parkID), collapse = "|")},")$")
   # park <- paste0("^(", parks,")$")
   park <- create_regex(parks)
   
@@ -482,9 +509,9 @@ campaign_structure <- function(MP = NULL, campaign = NULL) {
     
   )
   
+  # Remove Park ID if searching for specific campaign
   if (!is.null(campaign)) {
-    spec <- spec%>%
-      filter(target != "ParkID")
+    spec <- spec[spec$target != "ParkID",]
   }
   
   return(spec)

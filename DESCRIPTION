@@ -24,12 +24,16 @@ Depends:
     R (>= 3.5)
 Imports: 
     dplyr,
+    fs,
     htmltools,
     janitor,
     magrittr,
+    purrr,
     rstudioapi,
     shiny,
     stringi,
+    stringr,
+    tibble,
     tools
 Suggests: 
     testthat (>= 3.0.0)
