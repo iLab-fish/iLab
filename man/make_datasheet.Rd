@@ -29,7 +29,8 @@ for tracking analysis progress.
 \examples{
 \dontrun{
 # BRUV
-wb <- make_datasheet(metadata, method = "BRUV", campaign.id = "2023-04_Ningaloo.MP.monitoring_stereoBRUV")
+wb <- make_datasheet(metadata, method = "BRUV", 
+  campaign.id = "2023-04_Ningaloo.MP.monitoring_stereoBRUV")
 wb_save(wb, "BRUV_datasheet.xlsx", overwrite = TRUE)
 }
 

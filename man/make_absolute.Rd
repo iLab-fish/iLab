@@ -15,9 +15,3 @@ Converts an excel range (e.g. A1:A5) into an absolute range (e.g. $A$1:$A$5)
 This function operates using a simple regular expression and works for typical
 cell references, including ranges and multi-area references.
 }
-\examples{
-make_absolute("A1")                   
-make_absolute("AA1:BB10")             
-make_absolute("Sheet1!A1:Sheet1!A10") 
-make_absolute(c("A1:A5","C1:C5"))     
-}
