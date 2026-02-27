@@ -104,10 +104,20 @@ The basic workflow for creating/updating functions is:
 10. Edit `README.Rmd` to add function details if required and render
     `README.md` by running `devtools::build_readme()` ([R Packages
     manual](https://r-pkgs.org/whole-game.html#use_readme_rmd))
-11. Ensure you save and commit your changes
-12. Push commits to GitHub
-13. Run a final `devtools::check()` to make sure all is well
-14. Install your package with `install()`
+11. Update the version number as required using
+    `usethis::use_version()`. Version updates can be:
+    - MAJOR: significant changes/additional features that may not be
+      backwards compatible with previous scripts.
+    - MINOR: minor changes/bug fixes/additional features that are
+      generally backwards compatible (most common)
+    - PATCH: bug fixes with minimal additional features and no backwards
+      compatibility issues
+    - DEV: development version of the package (mostly relevant when
+      developing publicly available packages)
+12. Ensure you save and commit your changes
+13. Push commits to GitHub
+14. Run a final `devtools::check()` to make sure all is well
+15. Install your package with `install()`
 
 <div class="figure">
 
