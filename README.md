@@ -118,7 +118,8 @@ The basic workflow for creating/updating functions is:
       compatibility issues
     - DEV: development version of the package (mostly relevant when
       developing publicly available packages)
-15. Detail changes in the updated version using
+15. Update `NEWS` to detail changes in the new version (e.g., patches,
+    additions, bug fixes)
 16. Install your package with `install()`
 
 <div class="figure">
