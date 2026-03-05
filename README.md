@@ -80,7 +80,7 @@ Packages manual](https://r-pkgs.org/data.html#sec-data-data).
 
 The basic workflow for creating/updating functions is:
 
-1.  Edit/create function (when calling other functions use
+1.  Edit/create function (when calling imported functions use
     packagename::function)
 2.  Edit/create Roxygen2 documentation (note exported functions need to
     include `#' @export` at the end of documentation)
