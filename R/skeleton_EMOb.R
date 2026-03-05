@@ -39,7 +39,7 @@
 #' @importFrom janitor clean_names
 #' @importFrom openxlsx2 read_xlsx
 #' @importFrom rstudioapi selectFile showDialog
-#' @importFrom dplyr select rename all_of any_of
+#' @importFrom dplyr select rename all_of any_of slice mutate
 #' @importFrom utils write.table
 #' @importFrom methods is
 #'
@@ -129,6 +129,16 @@ skeleton_emob <- function(x = NULL, out.path = NULL) {
       janitor::clean_names()#%>%
       # Reformat Time (takes excel decimal time and returns required format for checkEM)
       # dplyr::mutate(date_time = openxlsx::convertToDateTime(date_time))
+    
+    # If sampling method is DOV/ROV keep 1 row per site and replace opcode with site 
+    if (!grepl("BRUV", basename(fp))) {
+      x <- x%>%
+        dplyr::group_by(.data$site)%>%
+        dplyr::arrange(.data$op_code)%>%
+        dplyr::slice(1)%>%
+        ungroup()%>%
+        dplyr::mutate(op_code = .data$site)
+    }
     
     skeleton.data <- x
     
