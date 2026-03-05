@@ -41,6 +41,7 @@
 #' @importFrom rstudioapi selectFile showDialog
 #' @importFrom dplyr select rename all_of any_of
 #' @importFrom utils write.table
+#' @importFrom methods is
 #'
 #' @export
 
@@ -76,10 +77,10 @@ skeleton_emob <- function(x = NULL, out.path = NULL) {
     
     # Columns 5-12 can be anything else from metadata
     "date_time",
-    "site", 
-    "location", 
-    "status", 
-    "dbca_zone", 
+    "site",
+    "location",
+    "status",
+    "dbca_zone",
     "dbca_sanctuary", 
     "latitude", 
     "longitude",
@@ -101,7 +102,7 @@ skeleton_emob <- function(x = NULL, out.path = NULL) {
   
   if (!is.null(x)) {
     # set skeleton data if a dataframe is provided
-    if (!is(x, 'data.frame')) {
+    if (!methods::is(x, 'data.frame')) {
       stop("data.frame expected from input x")
     }
     skeleton.data <- x

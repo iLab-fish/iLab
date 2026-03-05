@@ -72,15 +72,15 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
     
     analysis.data <- metadata%>%
       # Duplicate rows based value in transects
-      tidyr::uncount(transects, .remove = TRUE, .id = "transect")%>%
+      tidyr::uncount(.data$transects, .remove = TRUE, .id = "transect")%>%
       # Add blank columns, and update values based on footage_useable
       analysis_cols(method = method) # see analysis_cols function to update columns and order
   }
   
   # > remove underscore from column names
-  names(analysis.data) <- names(analysis.data)%>%
-    gsub("_", " ", .)
-  
+  # names(analysis.data) <- names(analysis.data)%>%
+    # gsub("_", " ", .)
+  names(analysis.data) <- gsub("_", " ", names(analysis.data))
   # Format helpers ----
   # Vectors used to identify columns that have custom formatting/data validation/widths/are hidden etc. 
   
@@ -133,7 +133,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   
   
   # > Integers - Not in use
-  integers <- c("n", if (!BRUV) {"transect"},"raw hdd","backup hdd")
+  # integers <- c("n", if (!BRUV) {"transect"},"raw hdd","backup hdd")
   
   # > Conditional formatting (ERROR)
   blank.error <-  c("sample",if (!BRUV) {"transect"},"date time", "latitude","longitude", "depth", "lcam","rcam","raw hdd","backup hdd")

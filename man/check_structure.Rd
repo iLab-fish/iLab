@@ -4,7 +4,12 @@
 \alias{check_structure}
 \title{Validate Campaign Directories Against a Template}
 \usage{
-check_structure(MP = NULL, campaign = NULL, root = get_dir("ilab_fish"))
+check_structure(
+  MP = NULL,
+  campaign = NULL,
+  root = get_dir("ilab_fish"),
+  verbose = FALSE
+)
 }
 \arguments{
 \item{MP}{(Optional) acronym(s) of target marine park(s).}
@@ -14,6 +19,8 @@ Requires `MP` to be defined.}
 
 \item{root}{A character path to the directory whose structure should be
 validated (Default = iLab::get_dir("ilab_fish")).}
+
+\item{verbose}{Logical (default = FALSE). WHen TRUE warning messages detail file pathways.}
 }
 \value{
 A list containing a summary data.frame detailing the matches per rule 

@@ -10,6 +10,7 @@
 #' Requires `MP` to be defined.
 #' @param root A character path to the directory whose structure should be
 #'   validated (Default = iLab::get_dir("ilab_fish")).
+#' @param verbose Logical (default = FALSE). WHen TRUE warning messages detail file pathways. 
 #
 #' @return A list containing a summary data.frame detailing the matches per rule 
 #' in the template specification, a data.frame of unexpected file paths found, and 
@@ -38,6 +39,7 @@
 #' @import dplyr
 #' @importFrom stringr str_detect regex
 #' @importFrom purrr pmap map2_dfr
+#' @importFrom rlang .env .data
 #'
 #' @export
 
@@ -53,8 +55,13 @@
 # usethis::use_package("dplyr")
 # usethis::use_package("stringr")
 # usethis::use_package("purrr")
+# usethis::use_package("methods")
+# usethis::use_package("rlang")
 
-check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fish")){
+check_structure <- function(MP = NULL, 
+                            campaign = NULL, 
+                            root = get_dir("ilab_fish"), 
+                            verbose = FALSE){
   
   # check inputs ----
   
@@ -136,7 +143,8 @@ check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fis
   entries <- if (length(all_paths) == 0) {
     # Empty data frame if not paths remaining
     # tibble::tibble(path = character(), type_actual = character(), rel_dir = character(), name = character())
-    data.frame(path = character(), type_actual = character(), rel_dir = character(), name = character())
+    data.frame(type_actual = character(), name = character(), ext = character(),
+               rel_path = character(), rel_dir = character(), path = character())
   } else {
     # tibble::tibble(
     data.frame(
@@ -162,18 +170,6 @@ check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fis
       dplyr::distinct(path, .keep_all = TRUE)
   }
   
-  # # Apply global ignores (by name only, not full path)
-  # if (length(ignore_patterns)) {
-  #   to_ignore <- reduce(ignore_patterns, \(acc, pat) acc | str_detect(entries$name, regex(pat)), .init = rep(FALSE, nrow(entries)))
-  #   entries <- entries[!to_ignore, , drop = FALSE]
-  # }
-  
-  
-  # Helper: case-aware regex matching
-  # re_match <- function(x, pattern, case_sensitive = TRUE) {
-  #   str_detect(x, if (case_sensitive) pattern else regex(pattern, ignore_case = TRUE))
-  # }
-  
   # Template structure ----
   
   # Get folder structure (either generic or specific to the selected MP/campaign)
@@ -193,7 +189,6 @@ check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fis
   # Get folder structure (either generic or specific to the selected MP/campaign)
   matches_by_spec <- purrr::pmap(
     .l = list(
-      
       target = spec$target,
       type = spec$type,
       rel_dir_regex = spec$rel_dir_regex,             # <- folder regex
@@ -203,17 +198,17 @@ check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fis
     .f = function(target, type, rel_dir_regex, name_regex, case_sensitive) {
       subset <- entries %>%
         dplyr::filter(
-          type_actual == type,
-          re_dir(rel_dir, rel_dir_regex, case_sensitive)  # folder must match
+          .data$type_actual == .env$type,
+          re_dir(.data$rel_dir, .env$rel_dir_regex, .env$case_sensitive)  # folder must match
         ) %>%
         dplyr::mutate(
-          matches = re_name(name, name_regex, case_sensitive)       # AND name must match
+          matches = re_name(.data$name, .env$name_regex, .env$case_sensitive)  # AND name must match
         )%>%
-        dplyr::mutate(target = target)
+        # dplyr::mutate(target = target)
+        dplyr::mutate(target = .env$target)
       
       if (!nrow(subset)) {
         # produce empty frame with a matches column
-        # subset <- tibble::tibble(
         subset <- data.frame(
           type_actual = character(),
           name = character(),
@@ -247,7 +242,7 @@ check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fis
     
     # tibble::tibble(
     data.frame(
-      spec_row = i,
+      target_row = i,
       target = s$target,
       type = s$type,
       status = status,
@@ -259,8 +254,7 @@ check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fis
       rel_dir_regex = s$rel_dir_regex,
       name_regex = s$name_regex
     )
-  })%>%
-    dplyr::rename(target_row = spec_row)
+  })
   
   # Get paths explained by at least one rule
   explained_paths <- unique(unlist(lapply(matches_by_spec, function(df) df$path[df$matches])))
@@ -268,9 +262,12 @@ check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fis
   
   # Unexpected entries output
   unexpected <- entries %>%
-    dplyr::filter(!(path %in% explained_paths)) %>%
-    dplyr::select(type_actual, name, rel_dir, path)%>%
-    dplyr::rename(type = type_actual, full_path = path)
+    dplyr::filter(!(path %in% explained_paths)) 
+  
+  # Select/rename 
+  unexpected <- unexpected[c("type_actual", "name", "rel_dir", "path")]
+  colnames(unexpected)[1] <- "type"
+  colnames(unexpected)[4] <- "full_path"
   
   if(nrow(unexpected)>0) {
     warning(
@@ -283,26 +280,25 @@ check_structure <- function(MP = NULL, campaign = NULL, root = get_dir("ilab_fis
     if (!nrow(df)) return(data.frame()) #tibble
     df %>%
       dplyr::mutate(spec_row = i, matched = matches) %>%
-      dplyr::select(spec_row, target, type_actual, rel_dir, name, path, matched)
+      dplyr::select(dplyr::all_of("type_actual", "name", "rel_dir", "matched", "target", "spec_row", "path"))
     
-  }) %>% dplyr::arrange(spec_row, rel_dir, name)%>%
-    # Select and rename required columns
-    dplyr::select(type_actual, name, rel_dir, matched, target, spec_row, rel_dir, path)%>%
-    dplyr::rename(type = type_actual, target_matched = target, target_row = spec_row, full_path = path)
+  }) %>% dplyr::arrange(.data$spec_row, .data$rel_dir, .data$name)
   
-  row.names(details) <- NULL
+  # Rename cols/rows
+  colnames(details) <- c("type", "name", "rel_dir", "matched", "target_matched", "target_row", "full_path")
+  rownames(details) <- NULL
   
   matches <- details %>%
-    dplyr::filter(matched == TRUE)%>%
-    dplyr::select(-matched)
+    dplyr::filter(.data$matched == TRUE)
+  
+  matches[, colnames(matches) != "matched"]
   
   unexpected_debug <- details %>%
-    dplyr::filter(matched == FALSE,
-                  !(full_path %in% explained_paths))
+    dplyr::filter(.data$matched == FALSE,
+                  !(.data$full_path %in% explained_paths))
   
   # Output lists
   list(
-    # root = root,
     summary = summary,
     matches = matches,
     unexpected = unexpected,

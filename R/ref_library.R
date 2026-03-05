@@ -12,7 +12,7 @@
 #' @import tools
 #' @importFrom janitor clean_names
 #' @importFrom magrittr %>%
-#' @importFrom dplyr filter select left_join join_by
+#' @importFrom dplyr filter select left_join join_by rename
 #' @importFrom htmltools htmlEscape
 #' @importFrom stats na.omit complete.cases
 #' 
@@ -324,10 +324,12 @@ ref_library <- function() {
       
       # CAAB list
       # TODO - create approach to include in package data rather than rely on sharepoint
-      CAAB <- read.delim(file.path(iLab::get_dir("ilab_fish"), "!Essential_Files/CAAB_Species_Files/WA_CAAB.txt"), sep="\t")
+      CAAB <- read.delim(file.path(iLab::get_dir("ilab_fish"), "!Essential_Files/CAAB_Species_Files/WA_CAAB.txt"), sep="\t")[1:4]
       CAAB  <- janitor::clean_names(CAAB)
-      names(CAAB)[1] <- "family"
-      names(CAAB)[4] <- "caab"
+      colnames(CAAB)[1] <- "family"
+      colnames(CAAB)[4] <- "caab"
+      # names(CAAB)[1] <- "family"
+      # names(CAAB)[4] <- "caab"
       
       # Absolute paths for ParkID extraction
       abs_files <- file.path(dir, rel_files)
@@ -341,7 +343,8 @@ ref_library <- function() {
       genus <- gs$genus
       species <- gs$species
       
-      df <- data.frame(
+      # df <- 
+      data.frame(
         rel_path = rel_files,
         web_path = file.path("PLACEHOLDER_ALIAS", rel_files),  # patched after addResourcePath
         filename = basename(rel_files),
@@ -353,7 +356,7 @@ ref_library <- function() {
       )%>%
         dplyr::filter(genus %in% CAAB$genus,
                species %in% CAAB$species)%>%
-        dplyr::left_join(CAAB%>%select(family,genus,species,caab), by = dplyr::join_by(genus, species))
+        dplyr::left_join(CAAB, by = dplyr::join_by(genus, species))
     }
     
     # Index images and update UI
@@ -547,11 +550,11 @@ ref_library <- function() {
           caption <- sprintf(
             "Park ID: %s - %s %s %s - %s",
             # d$filename[i],
-            ifelse(is.na(d$parkid[i]),  "—", d$parkid[i]),
+            ifelse(is.na(d$parkid[i]),  "-", d$parkid[i]),
             ifelse(is.na(d$genus[i]),   "",  d$family[i]),
             ifelse(is.na(d$genus[i]),   "",  d$genus[i]),
             ifelse(is.na(d$species[i]), "",  d$species[i]),
-            ifelse(is.na(d$caab[i]), "",  d$caab[i])
+            ifelse(is.na(d$caab[i]),    "",  d$caab[i])
           )
           
           tags$div(
