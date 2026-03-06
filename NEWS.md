@@ -1,3 +1,7 @@
+# iLab 0.2.2
+
+Added field metadata functions (`clean_field_names()`, `field_variables()`, `add_missing_variables()`) used in reformatting BRUV/DOV field metadata before creating analysis datasheets.
+
 # iLab 0.2.1
 
 Minor fixes to prevent `no visible binding for global variable 'x'` appearing in notes.
