@@ -13,7 +13,8 @@ add_missing_variables(x, missing)
 field metadata}
 }
 \description{
-Add blank columns for non-vital variables missing from field metadata.
+Add blank columns for non-vital variables missing from DBCA BRUV/DOV field 
+metadata.
 }
 \examples{
 \dontrun{

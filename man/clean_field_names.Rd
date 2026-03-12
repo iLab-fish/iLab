@@ -10,13 +10,14 @@ clean_field_names(x)
 \item{x}{A data frame containing field metadata.}
 }
 \description{
-Standardises field metadata column names
+Standardises column names in DBCA BRUV/DOV field metadata based on 
+known/potential synonyms.
 }
 \examples{
 \dontrun{
 field.data <- field.data\%>\%
   janitor::clean_names()\%>\%         # standardise separators and case
-  clean_names_method(method = method) #updates synonyms depending on method
+  clean_field_names() #updates synonyms depending on method
 }
 
 }

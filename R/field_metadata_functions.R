@@ -1,7 +1,8 @@
 #' Clean field metadata variable names
 #'
 #' @description
-#' Standardises field metadata column names 
+#' Standardises column names in DBCA BRUV/DOV field metadata based on 
+#' known/potential synonyms. 
 #'
 #' @param x A data frame containing field metadata. 
 #'
@@ -9,15 +10,13 @@
 #' \dontrun{
 #' field.data <- field.data%>%
 #'   janitor::clean_names()%>%         # standardise separators and case
-#'   clean_names_method(method = method) #updates synonyms depending on method
+#'   clean_field_names() #updates synonyms depending on method
 #' }
 #'
 #' @importFrom dplyr rename
 #' @export
 
 # usethis::use_package("dplyr")
-
-# TODO - test/implement in Essential-scripts/Datasheet_Creator_Master.R
 
 clean_field_names <- function(x) {
   
@@ -135,7 +134,8 @@ field_variables <- function(method = NULL) {
 #' Add missing variables to field metadata
 #'
 #' @description
-#' Add blank columns for non-vital variables missing from field metadata. 
+#' Add blank columns for non-vital variables missing from DBCA BRUV/DOV field 
+#' metadata. 
 #'
 #' @param x A data frame containing field metadata. 
 #' @param missing A vector containing the names of expected variables not found

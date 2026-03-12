@@ -27,7 +27,7 @@ iLab-Fish team. Most functions are specific for iLab-Fish processes and
 are commonly used in code found in [Essential
 scripts](https://github.com/iLab-fish/essential-scripts).
 
-Please report any issues or requests for additional functionality to the
+Please report issues or requests for additional functionality to the
 iLab-Fish technical team or via the [issues
 tab](https://github.com/iLab-fish/iLab/issues).
 
@@ -77,6 +77,9 @@ Function | Description | External | Notes
 |`campaign_structure()`| Creates template using regex to check campaign file/folder structure and naming  | No |  |
 |`analysis_cols()`|  Re-formats standardised field metadata to that required for creating analysis datasheet  | No |  |
 |`make_absolute()`|  Converts an excel range to an absolute range  | No |  |
+|`clean_field_names()`| Standardise column names in DBCA BRUV/DOV field metadata | Yes | |
+|`field_variables()`| Return list containing method specific expected and vital column names required for datasheet creation  | Yes | |
+|`clean_field_names()`| Add blank columns for non-vital variables missing from DBCA BRUV/DOV field metadata| Yes | |
 
 ## Internal/External data
 
