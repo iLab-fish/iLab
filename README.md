@@ -63,6 +63,7 @@ be called when `iLab` package is loaded or via `::` (e.g.,
 | `clean_field_names()` | Standardise column names in DBCA BRUV/DOV field metadata | Yes |  |
 | `field_variables()` | Return list containing method specific expected and vital column names required for datasheet creation | Yes |  |
 | `clean_field_names()` | Add blank columns for non-vital variables missing from DBCA BRUV/DOV field metadata | Yes |  |
+| `convert_non_ascii()` | Convert non-ascii characters in dataframe columns to ascii | Yes | If converting user is propted to continue or abort (except for column “field_note”) |
 
 ## Internal/External data
 

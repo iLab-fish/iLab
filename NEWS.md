@@ -1,3 +1,7 @@
+# iLab 0.4.0
+
+Added `convert_non_ascii()` used to remove non-ascii characters that break datasheet creation. 
+
 # iLab 0.3.0
 
 Added field metadata functions (`clean_field_names()`, `field_variables()`, `add_missing_variables()`) used in reformatting BRUV/DOV field metadata before creating analysis datasheets.
