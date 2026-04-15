@@ -65,7 +65,7 @@ clean_field_names <- function(x) {
 #' on sampling method. Returns a list containing the named vectors `expected` and 
 #' `vital`.
 #'
-#' @param method Character; one of `c("BRUV","DOV")`. Determines the sheet
+#' @param method Character; one of `c("BRUV","DOV", "ROV")`. Determines the sheet
 #'   structure, required columns, and data validations applied.
 #'   
 #' @examples
@@ -80,51 +80,110 @@ field_variables <- function(method = NULL) {
     stop(paste0('method "', method,'" does not match BRUV, DOV, or ROV'))
   }
   
+  # if (method == "ROV") {
+  #   warning('ROV specific method not implemented, using `method = "DOV" may work.')
+  # }
+  
   if (method == "ROV") {
-    warning('ROV specific method not implemented, using `method = "DOV" may work.')
+    # Variables expected in field metadata
+    expected <- c("sample",
+                  "date_time",
+                  "location",
+                  "site",
+                  "status",
+                  "dbca_zone",
+                  "dbca_sanctuary",
+                  "depth",
+                  "field_note",
+                  "longitude",
+                  "latitude",
+                  "lcam",
+                  "rcam",
+                  "pilot",
+                  "transects",
+                  "raw_hdd",
+                  "backup_hdd",
+                  "visibility",
+                  "footage_useable"
+    )
+    
+    # Variables which if missing will cause an error
+    vital <- c("sample",
+               "date_time",
+               "longitude",
+               "latitude",
+               "lcam",
+               "rcam",
+               "transects"
+    )
   }
   
-  # Variables expected in field metadata
-  expected <- c("sample",
-                "date_time",
-                "location",
-                "site",
-                "status",
-                "dbca_zone",
-                "dbca_sanctuary",
-                "depth",
-                "field_note",
-                "longitude",
-                "latitude",
-                "lcam",
-                "rcam",
-                if (method == "DOV") {
-                  "operator"
-                },
-                if (method == "DOV") {
-                  "transects"
-                },
-                "raw_hdd",
-                "backup_hdd",
-                "visibility",
-                if (method == "BRUV") {
-                  "fov"
-                },
-                "footage_useable"
-  )
-  
-  # Variables which if missing will cause an error
-  vital <- c("sample",
-             "date_time",
-             "longitude",
-             "latitude",
-             "lcam",
-             "rcam",
-             if (method == "DOV") {
-               "transects"
-             }
-  )
+  if (method == "BRUV") {
+    # Variables expected in field metadata
+    expected <- c("sample",
+                  "date_time",
+                  "location",
+                  "site",
+                  "status",
+                  "dbca_zone",
+                  "dbca_sanctuary",
+                  "depth",
+                  "field_note",
+                  "longitude",
+                  "latitude",
+                  "lcam",
+                  "rcam",
+                  "raw_hdd",
+                  "backup_hdd",
+                  "visibility",
+                  "fov",
+                  "footage_useable"
+    )
     
+    # Variables which if missing will cause an error
+    vital <- c("sample",
+               "date_time",
+               "longitude",
+               "latitude",
+               "lcam",
+               "rcam"
+    )
+  }
+  
+  if (method == "DOV") {
+    # Variables expected in field metadata
+    expected <- c("sample",
+                  "date_time",
+                  "location",
+                  "site",
+                  "status",
+                  "dbca_zone",
+                  "dbca_sanctuary",
+                  "depth",
+                  "field_note",
+                  "longitude",
+                  "latitude",
+                  "lcam",
+                  "rcam",
+                  "operator",
+                  "transects",
+                  "raw_hdd",
+                  "backup_hdd",
+                  "visibility",
+                  "footage_useable"
+    )
+    
+    # Variables which if missing will cause an error
+    vital <- c("sample",
+               "date_time",
+               "longitude",
+               "latitude",
+               "lcam",
+               "rcam",
+               "transects"
+    )
+  }
+  
   # Output list
   list("expected" = expected,
        "vital" = vital)
