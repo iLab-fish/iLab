@@ -9,7 +9,7 @@
 #'
 #' @param metadata A data frame containing formatted field metadata. Must include
 #'  the minimum required columns for the selected `method`.
-#' @param method Character; one of `c("BRUV","DOV")`. Determines the sheet
+#' @param method Character; one of `c("BRUV", "DOV", "ROV")`. Determines the sheet
 #'   structure, required columns, and data validations applied.
 #' @param campaign.id a character string detailing the campaign id specific to the 
 #'  datasheet.
@@ -35,16 +35,15 @@
 
 # TODO - add named Table for (Analysis and Analysts) to simplify formula creation/data validation? Need to check that this will not ruin old datasheets/metadata creation files
 
-
-make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.id = NULL) {
-  
+make_datasheet <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"), campaign.id = NULL,
+                                usbl.file = NULL) {
   
   # Set up ----
   
   warning("Please raise any issues with the technical team or on GitHub (https://github.com/iLab-fish/iLab/issues).")
   
   stopifnot("data.frame expected for input 'metadata'"  = is.data.frame(metadata))
-  stopifnot("Method not one of 'BRUV' or 'DOV'" = method %in%c("BRUV","DOV"))
+  stopifnot("Method not one of 'BRUV', 'DOV' or 'ROV'"  = method %in% c("BRUV","DOV", "ROV"))
   
   # > Libraries
   # require(openxlsx2)
@@ -59,36 +58,71 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # Create analysis dataframe ---- 
   if (method == "BRUV") {
     
-    BRUV <- TRUE
+    # BRUV <- TRUE
     
-    analysis.data <- metadata%>%
+    analysis.data <- metadata %>%
       # Add blank columns, and update values based on footage_useable
       analysis_cols(method = method) # see helper function to update columns and order
-      
     
-  } else {
     
-    BRUV <- FALSE
+  } 
+  
+  if (method == "DOV") {
     
-    analysis.data <- metadata%>%
+    # DOV <- TRUE
+    
+    analysis.data <- metadata %>%
       # Duplicate rows based value in transects
-      tidyr::uncount(.data$transects, .remove = TRUE, .id = "transect")%>%
+      tidyr::uncount(.data$transects, .remove = TRUE, .id = "transects") %>%
       # Add blank columns, and update values based on footage_useable
-      analysis_cols(method = method) # see analysis_cols function to update columns and order
+      analysis_cols(method = method) %>% # see analysis_cols function to update columns and order
+      dplyr::rename(transect = transects) # After this point it becomes singular
   }
+  
+  if (method == "ROV") {
+    
+    usbl <- read.csv(usbl.file) %>%
+      dplyr::group_by(sample, transect) %>%
+      dplyr::mutate(transect_start_time = hms::as_hms(min(hms::as_hms(stringr::str_extract(date_time, "\\s.*")))),
+                    transect_end_time   = hms::as_hms(max(hms::as_hms(stringr::str_extract(date_time, "\\s.*"))))) %>%
+      distinct(sample, transect, transect_start_time, transect_end_time, 
+               transect_length_m) %>%
+      dplyr::rename(transects = transect)
+    
+    # ROV <- TRUE
+    
+    analysis.data <- metadata %>%
+      # Duplicate rows based value in transects
+      tidyr::uncount(.data$transects, .remove = TRUE, .id = "transects") %>%
+      dplyr::left_join(usbl) %>%
+      # Add blank columns, and update values based on footage_useable
+      analysis_cols(method = method) %>% # see analysis_cols function to update columns and order 
+      dplyr::rename(transect = transects) # After this point it becomes singular
+  }
+  
+  # else {
+  #   
+  #   BRUV <- FALSE
+  #   
+  #   analysis.data <- metadata %>%
+  #     # Duplicate rows based value in transects
+  #     tidyr::uncount(.data$transects, .remove = TRUE, .id = "transect") %>%
+  #     # Add blank columns, and update values based on footage_useable
+  #     analysis_cols(method = method) # see analysis_cols function to update columns and order
+  # }
   
   # > remove underscore from column names
   # names(analysis.data) <- names(analysis.data)%>%
-    # gsub("_", " ", .)
+  # gsub("_", " ", .)
   names(analysis.data) <- gsub("_", " ", names(analysis.data))
   # Format helpers ----
   # Vectors used to identify columns that have custom formatting/data validation/widths/are hidden etc. 
   
   # > Field/analysis columns and column widths
-  if (BRUV) {
+  if (method == "BRUV") {
     
     # > Field data columns
-    field.cols <- names(metadata)[! names(metadata) %in% c("footage_useable","visibility","fov")]
+    field.cols <- names(metadata)[! names(metadata) %in% c("footage_useable", "visibility", "fov")]
     field.cols <- c("n", gsub("_", " ", field.cols))
     
     # > Analysis columns
@@ -99,12 +133,14 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
                     5,	5,	7,	7,	8,	8,	8,	8,	7, 7,	10,
                     8,	8,	8,	8,	7,	10,	8,	7,	7,	10,	10)
     names(col.widths) <- names(analysis.data)
-
     
-  } else {
+    
+  }
+  
+  if (method == "DOV") {
     
     # > Field data columns
-    field.cols <- c(names(metadata)[! names(metadata) %in% c("transects","footage_useable","visibility")], "transect")
+    field.cols <- c(names(metadata)[! names(metadata) %in% c("transects", "footage_useable", "visibility")], "transect")
     field.cols <- c("n", gsub("_", " ", field.cols))
     
     # > Analysis columns
@@ -118,9 +154,27 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
     
   }
   
+  if (method == "ROV") {
+    
+    # > Field data columns
+    field.cols <- c(names(metadata)[! names(metadata) %in% c("transects", "footage_useable", "visibility")], 
+                    "transect")
+    field.cols <- c("n", gsub("_", " ", field.cols))
+    
+    # > Analysis columns
+    analysis.cols <- names(analysis.data)[!names(analysis.data) %in% field.cols]
+    
+    # > Column widths
+    col.widths <- c(3,	8,	8, 18,	9,	9,	8,	8,	8,	8,	8, 6, 9,
+                    8, 8, 8, 5,	5,	7,	7,	8,	8,	8,	8,	7,	10,
+                    8,	8,	8,	7,	7,	10,	10)
+    names(col.widths) <- names(analysis.data)
+    
+  }
+  
   # > Dates
-  dates <- if (BRUV) {c("maxn complete", "length successful", "habitat successful")
-    } else {c("complete","habitat successful")}
+  dates <- if (method == "BRUV") {c("maxn complete", "length successful", "habitat successful")
+  } else {c("complete", "habitat successful")}
   
   # > Text - Not in use
   # text <- c("sample", "lcam", "rcam","field note", "footage useable", "footage note", 
@@ -136,13 +190,15 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # integers <- c("n", if (!BRUV) {"transect"},"raw hdd","backup hdd")
   
   # > Conditional formatting (ERROR)
-  blank.error <-  c("sample",if (!BRUV) {"transect"},"date time", "latitude","longitude", "depth", "lcam","rcam","raw hdd","backup hdd")
+  blank.error <-  c("sample", if (method %in% c("ROV", "DOV")) {"transect"}, "date time", 
+                    "latitude", "longitude", "depth", "lcam", "rcam", "raw hdd", "backup hdd", 
+                    if (method %in% "ROV") {"transect start time"}, if (method %in% "ROV") {"transect end time"})
   
   # > Conditional formatting warning
-  blank.warning <-  c("site","location","status", if (!BRUV) {"operator"})
+  blank.warning <-  c("site", "location", "status", if (method == "DOV") {"operator"}, if (method == "ROV") {"pilot"})
   
   # > Hidden Columns 
-  hide <- c("site","location","status","dbca zone","dbca sanctuary")
+  hide <- c("site", "location", "status", "dbca zone", "dbca sanctuary")
   
   
   # Create workbook ----
@@ -153,12 +209,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
     category = "Monitoring"#,
     # subject = MPID
     # manager = NULL,
-    )
-  
-  # ANALYSIS -----
-  
-  ## Add/style data ----
-  wb <- wb%>%
+  ) %>%
     
     # > Add analysis worksheet
     openxlsx2::wb_add_worksheet("ANALYSIS", tabColour = "#4969C8") %>%
@@ -172,13 +223,13 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
       na.strings = NULL,    # make NAs blank
       with_filter = TRUE,   # adds filter to top row
       name = "Analysis"
-    )%>%
+    ) %>%
     
     # > Header text alignment
     openxlsx2::wb_add_cell_style(
       dims = wb_dims(x = analysis.data, select = "col_names"),
       horizontal = "center", vertical = "center", wrap_text = TRUE
-    )%>%
+    ) %>%
     
     # > Header border
     openxlsx2::wb_add_border(
@@ -194,12 +245,12 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
     openxlsx2::wb_add_fill( 
       dims = openxlsx2::wb_dims(x = analysis.data, cols = field.cols, select = "col_names"),
       color = openxlsx2::wb_colour("#BE780E")
-    )%>%
+    ) %>%
     
     # > Header fill (Analysis Columns)
     openxlsx2::wb_add_fill(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = analysis.cols, select = "col_names"),
-      color = openxlsx2::wb_colour("#4969C8"))%>%
+      color = openxlsx2::wb_colour("#4969C8")) %>%
     
     # > Data border
     openxlsx2::wb_add_border(
@@ -210,15 +261,15 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
     # > Table fill (Field Columns)
     openxlsx2::wb_add_fill(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = field.cols, select = "data"),
-      color = openxlsx2::wb_colour("#F7D29B"))%>%
+      color = openxlsx2::wb_colour("#F7D29B")) %>%
     
     # > Table fill (Field Columns)
     openxlsx2::wb_add_fill(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = analysis.cols, select = "data"),
-      color = openxlsx2::wb_colour("#C1CFF8"))%>%
+      color = openxlsx2::wb_colour("#C1CFF8")) %>%
     
     # > Column widths
-    openxlsx2::wb_set_col_widths(cols = 1:ncol(analysis.data), widths = col.widths)%>%
+    openxlsx2::wb_set_col_widths(cols = 1:ncol(analysis.data), widths = col.widths) %>%
     
     # > Freeze top row
     openxlsx2::wb_freeze_pane(first_row = TRUE)
@@ -230,7 +281,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   
   # > Dates
   
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_numfmt(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = dates, select = "data"),
       numfmt = "yyyy-mm-dd")
@@ -246,13 +297,13 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # Add if required
   
   # > Latitude and longitude
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_numfmt(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = c("latitude", "longitude"), select = "data"),
       numfmt = "0.00")
   
   # > Depth
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_numfmt(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = "depth", select = "data"),
       numfmt = "0.0")
@@ -269,7 +320,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   )
   
   # add conditional formatting
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_conditional_formatting(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = blank.error, select = "data"),
       type = "containsBlanks",
@@ -284,7 +335,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   )
   
   # Add conditional formatting
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_conditional_formatting(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = blank.warning, select = "data"),
       type = "containsBlanks",
@@ -302,7 +353,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
     name = "DoNotUse", bg_fill = openxlsx2::wb_color("#7f7f7f")
   )
   
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_conditional_formatting(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = var, select = "data"),
       rule = paste0("$", openxlsx2::wb_dims(x = analysis.data, cols = "footage useable"),' = "No"'),
@@ -312,7 +363,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # > Length Not Possible (BRUV only)
   # These columns should be grayed out if length possible is "No"
   
-  if (BRUV) {
+  if (method == "BRUV") {
     
     # Get column and row numbers
     var <- c("length possible", "length analyst", "length successful","length notes")
@@ -323,7 +374,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
         rule = paste0("$",openxlsx2::wb_dims(x = analysis.data, cols = "length possible", rows = 1),' = "No"'),
         style = "DoNotUse"
       )
-    }
+  }
   
   ## Data validation ----
   # Set up drop downs, format limits, and range limits
@@ -335,7 +386,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # > lat/lon
   # Error if invalid
   
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_data_validation(
       dims = openxlsx2::wb_dims(x = analysis.data, cols ="latitude", select = "data"),
       type = "decimal",
@@ -346,7 +397,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
       error_style = "stop",
       error_title = "Invalid Input",
       error = "Latitude must be between -90 and 90"
-    )%>%
+    ) %>%
     openxlsx2::wb_add_data_validation(
       dims = openxlsx2::wb_dims(x = analysis.data, cols ="longitude", select = "data"),
       type = "decimal",
@@ -361,7 +412,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   
   # > HDDs
   # Warn if not an integer
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_data_validation(
       dims = openxlsx2::wb_dims(x = analysis.data, cols =c("raw hdd", "backup hdd"), select = "data"),
       type = "whole",
@@ -377,12 +428,12 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # > Analysis complete
   # Warn user if they enter something that isn't a date
   
-  if (BRUV) {var <- c("maxn complete", "length successful", "habitat successful")
+  if (method == "BRUV") {var <- c("maxn complete", "length successful", "habitat successful")
   } else {var <- c("complete", "habitat successful")}
   
   # Using loop as adding data validation non consecutive ranges not currently working (openxlsx2 version 1.21) 
   for (i in 1:length(var)){
-    wb <- wb%>%
+    wb <- wb %>%
       openxlsx2::wb_add_data_validation(
         dims = openxlsx2::wb_dims(x = analysis.data, cols = var[i], select = "data"),
         type = "date",
@@ -399,13 +450,13 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # > Analyst
   # error if no intials are selected
   
-  if (BRUV) {var <- c("maxn analyst", "maxn checker", "length analyst", "habitat analyst")
+  if (method == "BRUV") {var <- c("maxn analyst", "maxn checker", "length analyst", "habitat analyst")
   } else {var <- c("analyst", "checker", "habitat analyst")}
-
+  
   # Using loop as adding data validation for non consecutive ranges not implemented (openxlsx2 version 1.21)
   for (i in 1:length(var)){
     
-    wb <- wb%>%
+    wb <- wb %>%
       openxlsx2::wb_add_data_validation(
         dims = openxlsx2::wb_dims(x = analysis.data, cols = var[i], select = "data"),
         type = "list",
@@ -421,7 +472,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   
   # > visibility
   # Give list of visibility ranges, but allow user to manually enter integers
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_data_validation(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = "visibility", select = "data"),
       type = "list",
@@ -433,10 +484,10 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # > Yes/No
   # Allow selection of yes/no and error if alternative value is used
   
-  if (BRUV) {var <- c("footage useable", "length possible", "habitat image")} else  {var <- c("footage useable", "habitat images")}
+  if (method == "BRUV") {var <- c("footage useable", "length possible", "habitat image")} else  {var <- c("footage useable", "habitat images")}
   
   for (i in 1:length(var)) {
-    wb <- wb%>%
+    wb <- wb %>%
       openxlsx2::wb_add_data_validation(
         dims = openxlsx2::wb_dims(x = analysis.data, cols = var[i], select = "data"),
         type = "list",
@@ -452,9 +503,9 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # > FOV (BRUV only)
   # Provide drop down list of possible fov options and error if invalid
   
-  if (BRUV){
+  if (method == "BRUV"){
     
-    wb <- wb%>%
+    wb <- wb %>%
       openxlsx2::wb_add_data_validation(
         dims = openxlsx2::wb_dims(x = analysis.data, cols = "fov", select = "data"),
         type = "list",
@@ -471,7 +522,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   
   ### > hide columns
   
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_set_col_widths(
       cols = which(names(analysis.data) %in% hide),
       hidden = TRUE
@@ -485,18 +536,18 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   
   # exclude protection of raw/backup/field note to allow editing
   var <- field.cols[! field.cols %in% c("raw hdd", "backup hdd", "field note")]
-
-  wb <- wb%>%
+  
+  wb <- wb %>%
     # Unlock all cells
     openxlsx2::wb_add_cell_style(
-      dims = openxlsx2::wb_dims(x =analysis.data),
+      dims = openxlsx2::wb_dims(x = analysis.data),
       locked = FALSE
-    )%>%
+    ) %>%
     # Lock headers
     openxlsx2::wb_add_cell_style(
       dims = openxlsx2::wb_dims(x = analysis.data, select = "col_names"),
       locked = TRUE
-    )%>%
+    ) %>%
     # Lock field data
     openxlsx2::wb_add_cell_style(
       dims = openxlsx2::wb_dims(x = analysis.data, cols = var, select = "data"),
@@ -530,16 +581,16 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   
   # > Campaign ID & n deployments/transects
   campaign <- data.frame("A" = c(campaign.id,
-                     paste(nrow(analysis.data),
-                           if (BRUV) {"deployments"} else {"transects"}
-                           )
-                     ))%>%
+                                 paste(nrow(analysis.data),
+                                       if (method == "BRUV") {"deployments"} else {"transect"}
+                                 )
+  )) %>%
     dplyr::rename('Campaign ID' = 1)
   
   
   # > Analysis steps blank table 
   progress <- data.frame(
-    "A" = if (BRUV) {c("MaxN", "Length", "Checks", "Habitat")
+    "A" = if (method == "BRUV") {c("MaxN", "Length", "Checks", "Habitat")
     } else  {c("Analysis", "Checks", "Habitat")
     },
     "Possible" = NA_integer_,
@@ -551,7 +602,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   class(progress$Progress) <- "percentage"
   
   # > Analyst details blank table
-  if (BRUV) {
+  if (method == "BRUV") {
     analyst.details <- data.frame(
       "A" = rep(NA_character_, 11),
       "Initials" = c(rep(NA_character_, 10),"Not Analysed"),
@@ -575,19 +626,19 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   ## Data/Styles ----
   
   # Create new worksheet
-  wb <- wb%>%
-    openxlsx2::wb_add_worksheet("PROGRESS_RULES", tabColour = "#06783D")%>%
+  wb <- wb %>%
+    openxlsx2::wb_add_worksheet("PROGRESS_RULES", tabColour = "#06783D") %>%
     
     ### > Data ----
-    # > Data (Campaign ID)
-    openxlsx2::wb_add_data(
-      x = campaign,   # Data to add
-      start_row =  1,        # Row start
-      start_col = 2,        # column start
-      colNames = TRUE,     # Add column names as header
-      na.strings = NULL,    # make NAs blank
-      name = 'Campaign_id'
-    )%>%
+  # > Data (Campaign ID)
+  openxlsx2::wb_add_data(
+    x = campaign,   # Data to add
+    start_row =  1,        # Row start
+    start_col = 2,        # column start
+    colNames = TRUE,     # Add column names as header
+    na.strings = NULL,    # make NAs blank
+    name = 'Campaign_id'
+  ) %>%
     
     # > Data (Progress)
     openxlsx2::wb_add_data(
@@ -608,7 +659,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
       colNames = TRUE,     # Add column names as header
       na.strings = NULL,    # make NAs blank
       name = 'Rules'
-    )%>%
+    ) %>%
     
     # > Data (Analysts)
     openxlsx2::wb_add_data(
@@ -619,10 +670,10 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
       na.strings = NULL,    # make NAs blank
       name = 'Analysts'
     )
-    
-    ### > Borders ----
   
-  wb <-wb%>%
+  ### > Borders ----
+  
+  wb <- wb %>%
     # # CampaignID (All)
     # openxlsx2::wb_add_border(
     #   dims = openxlsx2::wb_dims(rows = 1:2, from_col = 2), bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick", inner_hgrid = "thick")%>%
@@ -630,88 +681,88 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
     # CampaignID/Progress (Header)
     openxlsx2::wb_add_border(
       dims = openxlsx2::wb_dims(rows = 1, cols = 2:7),
-      bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick")%>%
+      bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick") %>%
     
     # Campaign ID (body)
     openxlsx2::wb_add_border(
       dims = openxlsx2::wb_dims(rows = 2:3, cols = 2),
       bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick",
-      inner_hgrid = "thin", inner_vgrid = "thin")%>%
+      inner_hgrid = "thin", inner_vgrid = "thin") %>%
     
     # Progress (Body)
     openxlsx2::wb_add_border(
-      dims = openxlsx2::wb_dims(rows = 2:if (BRUV) {5} else {4}, cols = 3:7),
+      dims = openxlsx2::wb_dims(rows = 2:if (method == "BRUV") {5} else {4}, cols = 3:7),
       bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick",
-      inner_hgrid = "thin", inner_vgrid = "thin")%>%
+      inner_hgrid = "thin", inner_vgrid = "thin") %>%
     
     # Rules (Header)
     openxlsx2::wb_add_border(
       dims = openxlsx2::wb_dims(rows = 1, cols = 9:10),
-      bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick")%>%
+      bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick") %>%
     
     # Rules (Body)
     openxlsx2::wb_add_border(
       dims = openxlsx2::wb_dims(rows = 2:21, cols = 9:10),
       bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick",
-      inner_hgrid = "thin", inner_vgrid = "thin")%>%
+      inner_hgrid = "thin", inner_vgrid = "thin") %>%
     
     # Analysts (Header)
     openxlsx2::wb_add_border(
-      dims = openxlsx2::wb_dims(rows = 8, cols = 2:if (BRUV) {7} else  {6}),
-      bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick")%>%
+      dims = openxlsx2::wb_dims(rows = 8, cols = 2:if (method == "BRUV") {7} else  {6}),
+      bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick") %>%
     
     # Analysts (Body)
     openxlsx2::wb_add_border(
-      dims = openxlsx2::wb_dims(rows = 9:18, cols = 2:if (BRUV) {7} else {6}),
+      dims = openxlsx2::wb_dims(rows = 9:18, cols = 2:if (method == "BRUV") {7} else {6}),
       bottom_border = "thick", top_border = "thick", left_border = "thick", right_border = "thick",
       inner_hgrid = "thin", inner_vgrid = "thin")
-    
-    
-    ### > Fill ----
   
-  wb <- wb%>%
+  
+  ### > Fill ----
+  
+  wb <- wb %>%
     
     # Header (Campaign ID, Progress, Rules)
     openxlsx2::wb_add_fill(
       dims = openxlsx2::wb_dims(rows = 1, cols = c(2:7,9:10)),
       color = openxlsx2::wb_colour("#2C9770")
-    )%>%
+    ) %>%
     
     # Header (Analysts)
     openxlsx2::wb_add_fill(
-      dims = openxlsx2::wb_dims(rows = 8, cols = 2:if (BRUV) {7} else {6}),
+      dims = openxlsx2::wb_dims(rows = 8, cols = 2:if (method == "BRUV") {7} else {6}),
       color = openxlsx2::wb_colour("#2C9770")
-    )%>%
+    ) %>%
     
     # CampaignID/Progress (Row 1)
     openxlsx2::wb_add_fill(
       dims = openxlsx2::wb_dims(rows = 2, cols = 2:7),
       color = openxlsx2::wb_colour("#C1CFF8")
-    )%>%
+    ) %>%
     
     # CampaignID/Progress (Row 2)
     openxlsx2::wb_add_fill(
       dims = openxlsx2::wb_dims(rows = 3, cols = 2:7),
       color = openxlsx2::wb_colour("#819EEF")
-    )%>%
+    ) %>%
     
     # Progress (Row 3)
     openxlsx2::wb_add_fill(
       dims = openxlsx2::wb_dims(rows = 4, cols = 3:7),
       color = openxlsx2::wb_colour("#5074DA")
-    )%>%
+    ) %>%
     
     # Analyst (Column 4)
     openxlsx2::wb_add_fill(
       dims = openxlsx2::wb_dims(rows = c(9:18), cols = 4),
       color = openxlsx2::wb_colour("#C1CFF8")
-    )%>%
+    ) %>%
     
     # Analyst (Column 5)
     openxlsx2::wb_add_fill(
       dims = openxlsx2::wb_dims(rows = c(9:18), cols = 5),
       color = openxlsx2::wb_colour("#819EEF")
-    )%>%
+    ) %>%
     
     # Analyst (Column 6)
     openxlsx2::wb_add_fill(
@@ -721,38 +772,38 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   
   
   # BRUV only
-  if (BRUV) {
-    wb <- wb%>%
+  if (method == "BRUV") {
+    wb <- wb %>%
       
       # Progress (Row 4)
       openxlsx2::wb_add_fill(
-      dims = openxlsx2::wb_dims(rows = 5, cols = 3:7),
-      color = openxlsx2::wb_colour("#1F4BC5")
-    )%>%
+        dims = openxlsx2::wb_dims(rows = 5, cols = 3:7),
+        color = openxlsx2::wb_colour("#1F4BC5")
+      )%>%
       
       # Analyst (Column 7)
       openxlsx2::wb_add_fill(
         dims = openxlsx2::wb_dims(rows = c(9:18), cols = 7),
         color = openxlsx2::wb_colour("#1F4BC5")
       )
-      
+    
   }
   
   
-    
-    ### > Font ----
   
-  wb <- wb%>%  
+  ### > Font ----
+  
+  wb <- wb %>%  
     
     # > Headers (Campaign ID, Progress, Rules)
     openxlsx2::wb_add_font(
       dims = openxlsx2::wb_dims(rows = 1, cols = c(2:7,9:10)),
-      bold = TRUE)%>%
+      bold = TRUE) %>%
     
     # > Header Font (Analysts)
     openxlsx2::wb_add_font(
-      dims = openxlsx2::wb_dims(rows = 8, cols = 2:if (BRUV) {7} else {6}),
-      bold = TRUE)%>%
+      dims = openxlsx2::wb_dims(rows = 8, cols = 2:if (method == "BRUV") {7} else {6}),
+      bold = TRUE) %>%
     
     # > NUll option (Analysts)
     openxlsx2::wb_add_font(
@@ -761,7 +812,7 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   
   ### > Alignment/Widths ----
   
-  wb <- wb%>%
+  wb <- wb %>%
     
     # Alignment (All except Project specific rule column) 
     openxlsx2::wb_add_cell_style(
@@ -769,52 +820,52 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
       horizontal = "center", vertical = "center")%>%
     
     # Column widths (All except Project specific rule column)
-    openxlsx2::wb_set_col_widths(cols = 2:9,widths = "auto")%>%
+    openxlsx2::wb_set_col_widths(cols = 2:9, widths = "auto") %>%
     
     # Column widths (All except Project specific rule column)
-    openxlsx2::wb_set_col_widths(cols = 10,widths = 55)
+    openxlsx2::wb_set_col_widths(cols = 10, widths = 55)
   
   ### > Progress Bars ----
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_conditional_formatting(
-      dims = if (BRUV) {openxlsx2::wb_dims(rows = 2:5, cols = 7)
+      dims = if (method == "BRUV") {openxlsx2::wb_dims(rows = 2:5, cols = 7)
       } else {openxlsx2::wb_dims(rows = 2:4, cols = 7)},
       type = "dataBar",
       rule = c(0, 1),
       style = c("#a6a6a6", "#2C9770"),
       params = list(gradient = FALSE)
     )
-
+  
   ## Formulas (Progress) ----
   # Formatting the analysis data as a 'data table' may simplify formula creation and allow us to call the specific columns rather than using cell ranges
   
-  wb <- wb%>%
+  wb <- wb %>%
     
     # > MaxN/DOV Analysis Possible
     openxlsx2::wb_add_formula(
       x =   paste0(nrow(analysis.data),'-COUNTIF(ANALYSIS!',
-                 openxlsx2::wb_dims(x = analysis.data, cols = "footage useable", select = "data"),
-                 ', "No")'),
+                   openxlsx2::wb_dims(x = analysis.data, cols = "footage useable", select = "data"),
+                   ', "No")'),
       dims = openxlsx2::wb_dims(rows = 2, cols =4)
-    )%>%
+    ) %>%
     
     # > MaxN/DOV Analysis complete
     openxlsx2::wb_add_formula(
-      x = if (BRUV) {
+      x = if (method == "BRUV") {
         paste0('COUNTA(ANALYSIS!',
                openxlsx2::wb_dims(x = analysis.data, cols = "maxn complete", select = "data"),
                ')')
-        } else {
-          paste0('COUNTA(ANALYSIS!',
-                 openxlsx2::wb_dims(x = analysis.data, cols = "complete", select = "data"),
-                 ')') 
-        },
+      } else {
+        paste0('COUNTA(ANALYSIS!',
+               openxlsx2::wb_dims(x = analysis.data, cols = "complete", select = "data"),
+               ')') 
+      },
       dims = openxlsx2::wb_dims(rows = 2, cols =5)
-    )%>%
+    ) %>%
     
     # > Lengths/Checks Possible
     openxlsx2::wb_add_formula(
-      x = if (BRUV) {
+      x = if (method == "BRUV") {
         paste0('D2-COUNTIF(ANALYSIS!',
                openxlsx2::wb_dims(x = analysis.data, cols = "length possible", select = "data"),
                ', "No")')
@@ -822,11 +873,11 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
         "D2" # Matches number analysis possible in DOVs
       },
       dims = openxlsx2::wb_dims(rows = 3, cols =4)
-    )%>%
+    ) %>%
     
     # > Length/DOV Checks complete
     openxlsx2::wb_add_formula(
-      x = if (BRUV) {
+      x = if (method == "BRUV") {
         paste0('COUNTA(ANALYSIS!',
                openxlsx2::wb_dims(x = analysis.data, cols = "length successful", select = "data"),
                ')')
@@ -839,49 +890,49 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
         ) 
       },
       dims = openxlsx2::wb_dims(rows = 3, cols =5)
-    )%>%
+    ) %>%
     
     # > Habitat Possible
     openxlsx2::wb_add_formula(
       x = "D2",
-      dims = if (BRUV) { openxlsx2::wb_dims(rows = 5, cols = 4)
-        } else {openxlsx2::wb_dims(rows = 4, cols = 4)}
-    )%>%
+      dims = if (method == "BRUV") { openxlsx2::wb_dims(rows = 5, cols = 4)
+      } else {openxlsx2::wb_dims(rows = 4, cols = 4)}
+    ) %>%
     
     # > Habitat Complete
     openxlsx2::wb_add_formula(
       x = paste0('COUNTA(ANALYSIS!',
-               openxlsx2::wb_dims(x = analysis.data, cols = "habitat successful", select = "data"),
-               ')'),
-      dims = if (BRUV) { openxlsx2::wb_dims(rows = 5, cols = 5)
+                 openxlsx2::wb_dims(x = analysis.data, cols = "habitat successful", select = "data"),
+                 ')'),
+      dims = if (method == "BRUV") { openxlsx2::wb_dims(rows = 5, cols = 5)
       } else {openxlsx2::wb_dims(rows = 4, cols = 5)}
-    )%>%
+    ) %>%
     
     # > Remaining (Analysis/Length/Checks/Habitat)
     openxlsx2::wb_add_formula(
       x = "$D2-$E2",
-      dims = if (BRUV) {openxlsx2::wb_dims(rows = 2:5, cols = 6)
+      dims = if (method == "BRUV") {openxlsx2::wb_dims(rows = 2:5, cols = 6)
       } else {openxlsx2::wb_dims(rows = 2:4, cols = 6)},
       shared = TRUE # FALSE should still work
-    )%>%
+    ) %>%
     
     # > Progress (Analysis/Length/Checks/Habitat)
     openxlsx2::wb_add_formula(
       x = "$E2/$D2",
-      dims = if (BRUV) {openxlsx2::wb_dims(rows = 2:5, cols = 7)
+      dims = if (method == "BRUV") {openxlsx2::wb_dims(rows = 2:5, cols = 7)
       } else {openxlsx2::wb_dims(rows = 2:4, cols = 7)},
       shared = TRUE
     )
-    
+  
   # > Checks Complete (BRUV only)
-  if (BRUV){
+  if (method == "BRUV"){
     
-    wb <- wb%>%
+    wb <- wb %>%
       # Checks Required
       openxlsx2::wb_add_formula(
         x = "D2",
         dims = openxlsx2::wb_dims(rows = 4, cols = 4)
-      )%>%
+      ) %>%
       
       # Checks Complete
       openxlsx2::wb_add_formula(
@@ -895,38 +946,38 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
       )
     
   }
-    
+  
   
   ## Formulas (Analyst) ----
   
   # > Analyst initials
-  wb <- wb%>%
+  wb <- wb %>%
     openxlsx2::wb_add_formula(
       x = 'IF(ISBLANK($B9),"",LEFT($B9,1) & MID($B9,FIND(" ",$B9)+1,1))',
       dims = openxlsx2::wb_dims(rows = 9:18, cols = 3),
       shared = TRUE
     )
-    
+  
   # > Counts per analyst
   # Using loop as adding shared formulas that call ranges in other sheets does not appear to work (openxlsx2 version 1.21)
   
   for (i in 9:18) {
-    wb <- wb%>%
-
+    wb <- wb %>%
+      
       # > MaxN/Analysis per Analyst
       openxlsx2::wb_add_formula(
         x = paste0('IF(ISBLANK($B',i,'),"",COUNTIF(ANALYSIS!',
                    make_absolute( # Makes column and row info absolute (not changing between cells)
-                     openxlsx2::wb_dims(x = analysis.data, cols = if (BRUV) {"maxn analyst"
+                     openxlsx2::wb_dims(x = analysis.data, cols = if (method == "BRUV") {"maxn analyst"
                      } else {"analyst"}, select = "data")
                    ),
-                     ",$C",i ,"))"),
+                   ",$C",i ,"))"),
         dims = openxlsx2::wb_dims(rows = i, cols = 4)
       )
-
-    if (BRUV) {
-
-      wb <- wb%>%
+    
+    if (method == "BRUV") {
+      
+      wb <- wb %>%
         # > Lengths per Analyst
         openxlsx2::wb_add_formula(
           x = paste0('IF(ISBLANK($B',i,'),"",COUNTIF(ANALYSIS!',
@@ -936,21 +987,21 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
                      ",$C",i ,"))"),
           dims = openxlsx2::wb_dims(rows = i, cols = 5)
         )
-
+      
     }
-
+    
     # > Checks per Analyst
-    wb <- wb%>%
+    wb <- wb %>%
       openxlsx2::wb_add_formula(
         x = paste0('IF(ISBLANK($B',i,'),"",COUNTIF(ANALYSIS!',
                    make_absolute( # Makes column and row info absolute (not changing between cells)
-                     openxlsx2::wb_dims(x = analysis.data, cols = if (BRUV) {"maxn checker"
+                     openxlsx2::wb_dims(x = analysis.data, cols = if (method == "BRUV") {"maxn checker"
                      } else {"checker"}, select = "data")
                    ),
                    ",$C",i ,"))"),
-        dims = openxlsx2::wb_dims(rows = i, cols = if (BRUV) {6} else {5})
-      )%>%
-
+        dims = openxlsx2::wb_dims(rows = i, cols = if (method == "BRUV") {6} else {5})
+      ) %>%
+      
       # > Habitat per analyst
       openxlsx2::wb_add_formula(
         x = paste0('IF(ISBLANK($B',i,'),"",COUNTIF(ANALYSIS!',
@@ -958,10 +1009,10 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
                      openxlsx2::wb_dims(x = analysis.data, cols = "habitat analyst", select = "data")
                    ),
                    ",$C",i ,"))"),
-        dims = openxlsx2::wb_dims(rows = i, cols = if (BRUV) {7} else {6})
+        dims = openxlsx2::wb_dims(rows = i, cols = if (method == "BRUV") {7} else {6})
       )
   }
-    
+  
   # Attempted shared formula for MaxN/Analysis per Analyst and simple test formula
   # shared forumlas seem to break when calling another sheet
   # It may be possible by calling specific columns from data tables
@@ -982,34 +1033,34 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   #   dims = openxlsx2::wb_dims(rows = 9:18, cols = 4),
   #   shared = TRUE
   # )
-
+  
   
   ## Protect Sheet ----
   
-  wb <- wb%>%
+  wb <- wb %>%
     
     # > Hide formulas
     openxlsx2::wb_add_cell_style(
       dims = openxlsx2::wb_dims(rows = 2:19, cols = 3:7),
-      hidden = TRUE)%>%
+      hidden = TRUE) %>%
     
     # > Unlock Campaign ID
     openxlsx2::wb_add_cell_style(
-      dims = openxlsx2::wb_dims(cols = 2, rows =2),
+      dims = openxlsx2::wb_dims(cols = 2, rows = 2),
       locked = FALSE
-    )%>%
+    ) %>%
     
     # > Unlock Analyst Names
     openxlsx2::wb_add_cell_style(
-      dims = openxlsx2::wb_dims(cols = 2, rows =9:18),
+      dims = openxlsx2::wb_dims(cols = 2, rows = 9:18),
       locked = FALSE
-    )%>%
+    ) %>%
     
     # > Unlock Rules
     openxlsx2::wb_add_cell_style(
-      dims = openxlsx2::wb_dims(cols = 10, rows =2:21),
+      dims = openxlsx2::wb_dims(cols = 10, rows = 2:21),
       locked = FALSE
-    )%>%
+    ) %>%
     
     # > Protect worksheet
     openxlsx2::wb_protect_worksheet(
@@ -1036,12 +1087,11 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
   # > Reorder sheets
   # Reordering causes issues with cell locking. If we need to re-order we could try running openxlsx2::wb_protect_worksheet() after re-ordering. Or create the progress sheet first.
   # wb <- wb%>%
-    # openxlsx2::wb_set_order(c(2,1))
+  # openxlsx2::wb_set_order(c(2,1))
   
   # Return workbook
   return(wb)
 }
-
 
 #' Create analysis dataframe
 #' 
@@ -1056,12 +1106,12 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV","DOV"), campaign.
 analysis_cols <- function(x, method = NULL) {
   
   stopifnot("data.frame expected for input 'x'"  = is.data.frame(x))
-  stopifnot("Method not one of 'BRUV' or 'DOV'" = method %in%c("BRUV","DOV"))
+  stopifnot("Method not one of 'BRUV', 'DOV' or 'ROV'" = method %in%c("BRUV", "DOV", "ROV"))
   
   # Validate method
-  valid <- c("BRUV", "DOV")
+  valid <- c("BRUV", "DOV", "ROV")
   if (is.null(method) || !(method %in% valid)) {
-    stop(sprintf('method "%s" does not match BRUV, DOV', as.character(method)), call. = FALSE)
+    stop(sprintf('method "%s" does not match BRUV, DOV or ROV', as.character(method)), call. = FALSE)
   }
   
   # Base columns added for all methods
@@ -1078,16 +1128,16 @@ analysis_cols <- function(x, method = NULL) {
   method_cols <- switch(
     method,
     BRUV = list(
-      maxn_analyst     = NA_character_,
-      maxn_complete    = NA_integer_,
-      maxn_notes       = NA_character_,
-      maxn_checker     = NA_character_,
-      checker_notes    = NA_character_,
-      length_possible  = NA_character_,
-      length_analyst   = NA_character_,
-      length_successful= NA_integer_,
-      length_notes     = NA_character_,
-      habitat_image    = NA_character_
+      maxn_analyst      = NA_character_,
+      maxn_complete     = NA_integer_,
+      maxn_notes        = NA_character_,
+      maxn_checker      = NA_character_,
+      checker_notes     = NA_character_,
+      length_possible   = NA_character_,
+      length_analyst    = NA_character_,
+      length_successful = NA_integer_,
+      length_notes      = NA_character_,
+      habitat_image     = NA_character_
     ),
     DOV = list(
       analyst        = NA_character_,
@@ -1096,6 +1146,14 @@ analysis_cols <- function(x, method = NULL) {
       checker        = NA_character_,
       checker_notes  = NA_character_,
       habitat_images = NA_character_
+    ),
+    ROV = list(
+      analyst             = NA_character_,
+      complete            = NA_integer_,
+      notes               = NA_character_,
+      checker             = NA_character_,
+      checker_notes       = NA_character_,
+      habitat_images      = NA_character_
     )
   )
   
@@ -1108,7 +1166,7 @@ analysis_cols <- function(x, method = NULL) {
   cols <- c(
     "n",
     "sample",
-    if (method == "DOV") "transect",
+    if (method %in% c("DOV", "ROV")) {"transects"},
     "date_time",
     "latitude",
     "longitude",
@@ -1118,12 +1176,16 @@ analysis_cols <- function(x, method = NULL) {
     "dbca_zone",
     "dbca_sanctuary",
     "depth",
-    if (method == "DOV") "operator",
+    if (method == "DOV") {"operator"},
+    if (method == "ROV") {"pilot"},
     "lcam",
     "rcam",
     "raw_hdd",
     "backup_hdd",
     "field_note",
+    if (method == "ROV") {"transect_start_time"},
+    if (method == "ROV") {"transect_end_time"},
+    if (method == "ROV") {"transect_length_m"},
     "footage_useable",
     "footage_note",
     "visibility",
@@ -1140,7 +1202,7 @@ analysis_cols <- function(x, method = NULL) {
       "length_notes",
       "habitat_image"
     ),
-    if (method == "DOV") c(
+    if (method %in% c("DOV", "ROV")) c(
       "analyst",
       "complete",
       "notes",
@@ -1155,7 +1217,7 @@ analysis_cols <- function(x, method = NULL) {
   
   
   # Update columns based on values in footage_useable
-  out <- base%>%
+  out <- base %>%
     dplyr::mutate(dplyr::across(
       
       # Set column values to No
@@ -1165,13 +1227,13 @@ analysis_cols <- function(x, method = NULL) {
       # Set column values to "Not Analysed"
       dplyr::across(
         if (method == "BRUV") {c("maxn_analyst", "length_analyst", "habitat_analyst")} else {c("analyst", "habitat_analyst")},
-        ~dplyr::case_when(footage_useable == "No" ~ "Not Analysed",TRUE ~ .))
-      )
+        ~dplyr::case_when(footage_useable == "No" ~ "Not Analysed", TRUE ~ .))
+    )
   
   # Reorder and error if columns are missing
   out %>%
     dplyr::select(dplyr::all_of(cols))
-    
+  
 }
 
 #' Convert excel range to absolute range
