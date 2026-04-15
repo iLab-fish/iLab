@@ -37,15 +37,16 @@
 
 # Testing script below - remove later
 
-if (!suppressMessages(suppressWarnings(require(pacman)))) install.packages("pacman")
-
-# Load packages
-pacman::p_load_current_gh(char = "iLab-fish/iLab") # install/update/load github packages
-pacman::p_load(dplyr, tidyr, openxlsx2, rstudioapi, tools, stringr, iLab) #install/load cran packages
-
-metadata <- readRDS("tests/test_metadata.rds")
-method = "ROV"
-campaign.id = "2026-03_Mamang.MP.Monitoring_stereoROV"
+# if (!suppressMessages(suppressWarnings(require(pacman)))) install.packages("pacman")
+# 
+# # Load packages
+# pacman::p_load_current_gh(char = "iLab-fish/iLab") # install/update/load github packages
+# pacman::p_load(dplyr, tidyr, openxlsx2, rstudioapi, tools, stringr, iLab) #install/load cran packages
+# 
+# metadata <- readRDS("tests/test_metadata.rds")
+# method = "ROV"
+# campaign.id = "2026-03_Mamang.MP.Monitoring_stereoROV"
+# usbl.file = "C:/Users/ClaudeSpencer/OneDrive - Department of Biodiversity, Conservation and Attractions/Marine Science - iLab_fish/MMMP(SC)/2026-03_ROV/USBL_Logs/Tidy Logs/2026-03_Mamang_ROV_tidy-usbl.csv"
 
 #' Create analysis dataframe
 #' 
@@ -102,12 +103,12 @@ analysis_cols <- function(x, method = NULL) {
       habitat_images = NA_character_
     ),
     ROV = list(
-      analyst        = NA_character_,
-      complete       = NA_integer_,
-      notes          = NA_character_,
-      checker        = NA_character_,
-      checker_notes  = NA_character_,
-      habitat_images = NA_character_
+      analyst             = NA_character_,
+      complete            = NA_integer_,
+      notes               = NA_character_,
+      checker             = NA_character_,
+      checker_notes       = NA_character_,
+      habitat_images      = NA_character_
     )
   )
   
@@ -121,6 +122,8 @@ analysis_cols <- function(x, method = NULL) {
     "n",
     "sample",
     if (method %in% c("DOV", "ROV")) {"transects"},
+    if (method == "ROV") {"transect_start_time"},
+    if (method == "ROV") {"transect_end_time"},
     "date_time",
     "latitude",
     "longitude",
@@ -168,7 +171,7 @@ analysis_cols <- function(x, method = NULL) {
   
   
   # Update columns based on values in footage_useable
-  out <- base%>%
+  out <- base %>%
     dplyr::mutate(dplyr::across(
       
       # Set column values to No
@@ -178,7 +181,7 @@ analysis_cols <- function(x, method = NULL) {
       # Set column values to "Not Analysed"
       dplyr::across(
         if (method == "BRUV") {c("maxn_analyst", "length_analyst", "habitat_analyst")} else {c("analyst", "habitat_analyst")},
-        ~dplyr::case_when(footage_useable == "No" ~ "Not Analysed",TRUE ~ .))
+        ~dplyr::case_when(footage_useable == "No" ~ "Not Analysed", TRUE ~ .))
     )
   
   # Reorder and error if columns are missing
@@ -204,7 +207,8 @@ make_absolute <- function(range) {
 }
 
 
-make_datasheet_rov <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"), campaign.id = NULL) {
+make_datasheet_rov <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"), campaign.id = NULL,
+                                usbl.file = NULL) {
   
   
   # Set up ----
@@ -212,7 +216,7 @@ make_datasheet_rov <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"
   warning("Please raise any issues with the technical team or on GitHub (https://github.com/iLab-fish/iLab/issues).")
   
   stopifnot("data.frame expected for input 'metadata'"  = is.data.frame(metadata))
-  stopifnot("Method not one of 'BRUV', 'DOV' or 'ROV'" = method %in%c("BRUV","DOV", "ROV"))
+  stopifnot("Method not one of 'BRUV', 'DOV' or 'ROV'" = method %in% c("BRUV","DOV", "ROV"))
   
   # > Libraries
   # require(openxlsx2)
@@ -227,7 +231,7 @@ make_datasheet_rov <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"
   # Create analysis dataframe ---- 
   if (method == "BRUV") {
     
-    BRUV <- TRUE
+    # BRUV <- TRUE
     
     analysis.data <- metadata %>%
       # Add blank columns, and update values based on footage_useable
@@ -238,24 +242,35 @@ make_datasheet_rov <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"
   
   if (method == "DOV") {
     
-    DOV <- TRUE
+    # DOV <- TRUE
     
     analysis.data <- metadata %>%
       # Duplicate rows based value in transects
-      tidyr::uncount(.data$transects, .remove = TRUE, .id = "transect") %>%
+      tidyr::uncount(.data$transects, .remove = TRUE, .id = "transects") %>%
       # Add blank columns, and update values based on footage_useable
-      analysis_cols(method = method) # see analysis_cols function to update columns and order
+      analysis_cols(method = method) %>% # see analysis_cols function to update columns and order
+      dplyr::rename(transect = transects) # After this point it becomes singular
   }
   
   if (method == "ROV") {
     
-    ROV <- TRUE
+    usbl <- read.csv(usbl.file) %>%
+      dplyr::group_by(sample, transect) %>%
+      dplyr::mutate(transect_start_time = hms::as_hms(min(hms::as_hms(stringr::str_extract(date_time, "\\s.*")))),
+                    transect_end_time   = hms::as_hms(max(hms::as_hms(stringr::str_extract(date_time, "\\s.*"))))) %>%
+      distinct(sample, transect, transect_start_time, transect_end_time, 
+               transect_length_m) %>%
+      dplyr::rename(transects = transect)
+    
+    # ROV <- TRUE
     
     analysis.data <- metadata %>%
       # Duplicate rows based value in transects
-      tidyr::uncount(.data$transects, .remove = TRUE, .id = "transect") %>%
+      tidyr::uncount(.data$transects, .remove = TRUE, .id = "transects") %>%
+      dplyr::left_join(usbl) %>%
       # Add blank columns, and update values based on footage_useable
-      analysis_cols(method = method) # see analysis_cols function to update columns and order
+      analysis_cols(method = method) %>% # see analysis_cols function to update columns and order 
+      dplyr::rename(transect = transects) # After this point it becomes singular
   }
   
   # else {
@@ -293,10 +308,12 @@ make_datasheet_rov <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"
     names(col.widths) <- names(analysis.data)
     
     
-  } else {
+  }
+  
+  if (method == "DOV") {
     
     # > Field data columns
-    field.cols <- c(names(metadata)[! names(metadata) %in% c("transects", "footage_useable", "visibility")], "transects")
+    field.cols <- c(names(metadata)[! names(metadata) %in% c("transects", "footage_useable", "visibility")], "transect")
     field.cols <- c("n", gsub("_", " ", field.cols))
     
     # > Analysis columns
@@ -304,6 +321,24 @@ make_datasheet_rov <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"
     
     # > Column widths
     col.widths <- c(3,	8,	8, 18,	9,	9,	8,	8,	8,	8,	8, 6, 9,
+                    5,	5,	7,	7,	8,	8,	8,	8,	7,	10,
+                    8,	8,	8,	7,	7,	10,	10)
+    names(col.widths) <- names(analysis.data)
+    
+  }
+  
+  if (method == "ROV") {
+    
+    # > Field data columns
+    field.cols <- c(names(metadata)[! names(metadata) %in% c("transects", "footage_useable", "visibility")], 
+                    "transect")
+    field.cols <- c("n", gsub("_", " ", field.cols))
+    
+    # > Analysis columns
+    analysis.cols <- names(analysis.data)[!names(analysis.data) %in% field.cols]
+    
+    # > Column widths
+    col.widths <- c(3,	8,	8, 8, 8, 18,	9,	9,	8,	8,	8,	8,	8, 6, 9, # Changed here as added columns
                     5,	5,	7,	7,	8,	8,	8,	8,	7,	10,
                     8,	8,	8,	7,	7,	10,	10)
     names(col.widths) <- names(analysis.data)
@@ -328,8 +363,9 @@ make_datasheet_rov <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"
   # integers <- c("n", if (!BRUV) {"transect"},"raw hdd","backup hdd")
   
   # > Conditional formatting (ERROR)
-  blank.error <-  c("sample", if (method %in% c("ROV", "DOV")) {"transects"}, "date time", 
-                    "latitude", "longitude", "depth", "lcam", "rcam", "raw hdd", "backup hdd")
+  blank.error <-  c("sample", if (method %in% c("ROV", "DOV")) {"transect"}, "date time", 
+                    "latitude", "longitude", "depth", "lcam", "rcam", "raw hdd", "backup hdd", 
+                    if (method %in% "ROV") {"transect start time"}, if (method %in% "ROV") {"transect end time"})
   
   # > Conditional formatting warning
   blank.warning <-  c("site", "location", "status", if (method == "DOV") {"operator"}, if (method == "ROV") {"pilot"})
@@ -719,7 +755,7 @@ make_datasheet_rov <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"
   # > Campaign ID & n deployments/transects
   campaign <- data.frame("A" = c(campaign.id,
                                  paste(nrow(analysis.data),
-                                       if (method == "BRUV") {"deployments"} else {"transects"}
+                                       if (method == "BRUV") {"deployments"} else {"transect"}
                                  )
   )) %>%
     dplyr::rename('Campaign ID' = 1)
