@@ -29,6 +29,8 @@ clean_field_names <- function(x) {
     longitude = "longitude_dd",
     latitude = "lat",
     longitude = "lon",
+    latitude = "start_latitude_dd",
+    longitude = "start_longitude_dd",
     date_time = "datetime",
     date_time = "time_date",
     date_time = "date.time",
