@@ -7,7 +7,7 @@
 field_variables(method = NULL)
 }
 \arguments{
-\item{method}{Character; one of `c("BRUV","DOV")`. Determines the sheet
+\item{method}{Character; one of `c("BRUV","DOV", "ROV")`. Determines the sheet
 structure, required columns, and data validations applied.}
 }
 \description{
