@@ -866,7 +866,10 @@ make_datasheet <- function (metadata = NULL, method = c("BRUV", "DOV", "ROV"), c
     # > Lengths/Checks Possible
     openxlsx2::wb_add_formula(
       x = if (method == "BRUV") {
-        paste0('D2-COUNTIF(ANALYSIS!',
+        paste0('COUNTIF(ANALYSIS!, ',
+               openxlsx2::wb_dims(x = analysis.data, cols = "maxn analyst", select = "data"),
+               ', "<>")',
+               '-COUNTIF(ANALYSIS!',
                openxlsx2::wb_dims(x = analysis.data, cols = "length possible", select = "data"),
                ', "No")')
       } else {
