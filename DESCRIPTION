@@ -23,6 +23,7 @@ RoxygenNote: 7.3.3
 Depends: 
     R (>= 3.5)
 Imports: 
+    digest,
     dplyr,
     fs,
     htmltools,
